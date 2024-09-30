@@ -72,6 +72,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             and (free_space >= barrel.ml_per_barrel)
         ):
             free_space -= barrel.ml_per_barrel
-            return BarrelOrder(sku=barrel.sku, quantity=1)
+            return [BarrelOrder(sku=barrel.sku, quantity=1)]
         else:
-            return ""
+            return []

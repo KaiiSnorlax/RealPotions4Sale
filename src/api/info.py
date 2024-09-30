@@ -26,4 +26,4 @@ def post_time(timestamp: Timestamp):
     """
     global time
     time = timestamp
-    return timestamp
+    return str(timestamp)
