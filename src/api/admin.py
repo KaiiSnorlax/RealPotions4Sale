@@ -8,6 +8,7 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
+
 @router.post("/reset")
 def reset():
     """
@@ -15,4 +16,3 @@ def reset():
     inventory, and all barrels are removed from inventory. Carts are all reset.
     """
     return "OK"
-

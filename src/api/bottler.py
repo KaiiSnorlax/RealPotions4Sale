@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends
 from enum import Enum
 from pydantic import BaseModel
 from src.api import auth
+import sqlalchemy
+from src import database as db
 
 router = APIRouter(
     prefix="/bottler",
@@ -9,9 +11,19 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
+with db.engine.begin() as connection:
+    connection.execute(
+        sqlalchemy.text(
+            "UPDATE global_inventory SET num_green_ml = num_green_ml - 100, num_green_potions = num_green_potions + 1 "
+            "WHERE num_green_ml >= 100"
+        )
+    )
+
+
 class PotionInventory(BaseModel):
     potion_type: list[int]
     quantity: int
+
 
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
@@ -19,6 +31,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
     print(f"potions delievered: {potions_delivered} order_id: {order_id}")
 
     return "OK"
+
 
 @router.post("/plan")
 def get_bottle_plan():
@@ -33,11 +46,12 @@ def get_bottle_plan():
     # Initial logic: bottle all barrels into red potions.
 
     return [
-            {
-                "potion_type": [100, 0, 0, 0],
-                "quantity": 5,
-            }
-        ]
+        {
+            "potion_type": [100, 0, 0, 0],
+            "quantity": 5,
+        }
+    ]
+
 
 if __name__ == "__main__":
     print(get_bottle_plan())
