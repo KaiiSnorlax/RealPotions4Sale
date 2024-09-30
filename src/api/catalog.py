@@ -19,10 +19,10 @@ class Catalog(BaseModel):
 def get_catalog():
 
     # Lists out all green potions in stock, if none are in stock return empty array.
+    current_stock = sqlalchemy.text("SELECT num_green_potions FROM global_inventory")
 
-    current_stock = "SELECT num_green_potions FROM global_inventory"
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text(current_stock)).mappings().first()
+        result = connection.execute(current_stock).mappings().first()
     if result["num_green_potions"] > 0:
         return Catalog(
             sku="GREEN_POTION_0",

@@ -33,10 +33,16 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
     # Updates inventory stock considering a. how many barrels bought and b. barrel price
 
     for barrel in barrels_delivered:
-        update_global_inventory = f"UPDATE global_inventory SET num_green_ml = num_green_ml + ({barrel.ml_per_barrel} * {barrel.quantity}), gold = gold - ({barrel.price} * {barrel.quantity})"
+        update_global_inventory = sqlalchemy.text(
+            "UPDATE global_inventory SET num_green_ml = num_green_ml + (:ml_per_barrel * :quantity), gold = gold - (:price * :quantity)"
+        ).bindparams(
+            ml_per_barrel=barrel.ml_per_barrel,
+            quantity=barrel.quantity,
+            price=barrel.price,
+        )
 
         with db.engine.begin() as connection:
-            connection.execute(sqlalchemy.text(update_global_inventory))
+            connection.execute(update_global_inventory)
 
     print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
 

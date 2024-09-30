@@ -87,16 +87,34 @@ def post_visits(visit_id: int, customers: list[Customer]):
     """
 
     for traveler in customers:
-        add_new_customer = f"INSERT INTO customers (name, class, level) VALUES ('{traveler.customer_name}', '{traveler.character_class}', {traveler.level}) ON CONFLICT DO NOTHING"
-
-        get_customer_id = f"SELECT (customer_id) FROM customers WHERE (name = '{traveler.customer_name}')"
-
         with db.engine.begin() as connection:
-            connection.execute(sqlalchemy.text(add_new_customer))
-            unique_visit = (connection.execute(sqlalchemy.text(get_customer_id)).mappings().all())
+            add_new_customer = sqlalchemy.text(
+                "INSERT INTO customers (name, class, level) VALUES (:customer_name, :character_class, :level) ON CONFLICT DO NOTHING"
+            ).bindparams(
+                customer_name=traveler.customer_name,
+                character_class=traveler.character_class,
+                level=traveler.level,
+            )
+            connection.execute(add_new_customer)
+
+            get_customer_id = sqlalchemy.text(
+                "SELECT (customer_id) FROM customers WHERE (name = :customer_name)"
+            ).bindparams(customer_name=traveler.customer_name)
+
+            unique_visit = connection.execute(get_customer_id).mappings().all()
+
             for visit in unique_visit:
-                add_new_visit = f"INSERT INTO customer_visits (visit_id, customer_id, hour_visited, day_visited) VALUES ({visit_id}, {visit["customer_id"]}, {info.time.hour}, '{info.time.day}')"
-                connection.execute(sqlalchemy.text(add_new_visit))
+
+                add_new_visit = sqlalchemy.text(
+                    "INSERT INTO customer_visits (visit_id, customer_id, hour_visited, day_visited) VALUES (:id, :visit, :hour, :day)"
+                ).bindparams(
+                    id=visit_id,
+                    visit=visit["customer_id"],
+                    hour=info.time.hour,
+                    day=info.time.day,
+                )
+
+                connection.execute(add_new_visit)
 
     print(customers)
 
@@ -129,8 +147,11 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     # Decrements potion stock and increments gold depending on customers order.
     # For now, only take into account when one potion bought.
 
-    update_global_inventory = "UPDATE global_inventory SET num_green_potions = num_green_potions - 1, gold = gold + 50 WHERE num_green_potions > 0"
+    update_global_inventory = sqlalchemy.text(
+        "UPDATE global_inventory SET num_green_potions = num_green_potions - 1, gold = gold + 50 WHERE num_green_potions > 0"
+    )
+
     with db.engine.begin() as connection:
-        connection.execute(sqlalchemy.text(update_global_inventory))
+        connection.execute(update_global_inventory)
 
     return {"total_potions_bought": 1, "total_gold_paid": 50}
