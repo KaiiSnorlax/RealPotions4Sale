@@ -9,7 +9,6 @@ dotenv.load_dotenv()
 
 api_keys = []
 
-
 api_keys.append(os.environ.get("API_KEY"))
 api_key_header = APIKeyHeader(name="access_token", auto_error=False)
 

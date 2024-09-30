@@ -11,13 +11,10 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
-with db.engine.begin() as connection:
-    connection.execute(
-        sqlalchemy.text(
-            "UPDATE global_inventory SET num_green_ml = num_green_ml - 100, num_green_potions = num_green_potions + 1 "
-            "WHERE num_green_ml >= 100"
-        )
-    )
+
+class BottlePlan(BaseModel):
+    potion_type: list[int]
+    quantity: int
 
 
 class PotionInventory(BaseModel):
@@ -27,7 +24,14 @@ class PotionInventory(BaseModel):
 
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
-    """ """
+
+    # Increment amount of green_potions based on quantity from BottlePlan
+
+    for potion in potions_delivered:
+        update_global_inventory = f"UPDATE global_inventory SET num_green_potions = num_green_potions + {potion.quantity}"
+        with db.engine.begin() as connection:
+            connection.execute(sqlalchemy.text(update_global_inventory))
+
     print(f"potions delievered: {potions_delivered} order_id: {order_id}")
 
     return "OK"
@@ -35,22 +39,26 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
 
 @router.post("/plan")
 def get_bottle_plan():
-    """
-    Go from barrel to bottle.
-    """
 
-    # Each bottle has a quantity of what proportion of red, blue, and
-    # green potion to add.
-    # Expressed in integers from 1 to 100 that must sum up to 100.
+    # Creates a BottlePlan depending on how many multiples of 100ml of green I have and how much space I have left
 
-    # Initial logic: bottle all barrels into red potions.
+    with db.engine.begin() as connection:
+        inventory = (
+            connection.execute(sqlalchemy.text("SELECT * FROM global_inventory"))
+            .mappings()
+            .first()
+        )
 
-    return [
-        {
-            "potion_type": [100, 0, 0, 0],
-            "quantity": 5,
-        }
-    ]
+    free_space = 50 - inventory["num_green_potions"]
+    possible_potions = inventory["num_green_ml"] // 100
+
+    if free_space == 0 or possible_potions == 0:
+        return ""
+    elif possible_potions >= free_space:
+        return BottlePlan(
+            potion_type=[0, 1, 0, 0],
+            quantity=possible_potions - (possible_potions - free_space),
+        )
 
 
 if __name__ == "__main__":
