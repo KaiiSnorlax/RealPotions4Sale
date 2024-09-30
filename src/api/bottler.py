@@ -58,7 +58,9 @@ def get_bottle_plan():
     potions_to_bottle = []
 
     if (free_space == 0) or (possible_potions == 0):
-        return []
+        print(f"Bottle plan: {potions_to_bottle}")
+        return potions_to_bottle
+    
     elif possible_potions >= free_space:
         potions_to_bottle.append(
             BottlePlan(
@@ -73,6 +75,7 @@ def get_bottle_plan():
         )
 
     print(f"Bottle plan: {potions_to_bottle}")
+    return potions_to_bottle
 
 
 if __name__ == "__main__":

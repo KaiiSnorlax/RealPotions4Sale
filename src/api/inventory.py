@@ -22,10 +22,12 @@ def get_inventory():
             .first()
         )
 
+    inventory_audit = {"number_of_potions": inventory["num_green_potions"], "ml_in_barrels": inventory["num_green_ml"], "gold": inventory["gold"],}
+    
+    print(inventory_audit)
+
     return {
-        "number_of_potions": inventory["num_green_potions"],
-        "ml_in_barrels": inventory["num_green_ml"],
-        "gold": inventory["gold"],
+        inventory_audit
     }
 
 

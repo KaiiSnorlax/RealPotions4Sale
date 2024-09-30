@@ -26,4 +26,6 @@ def reset():
             )
         )
 
+    print("global_inventory reset to scratch")
+
     return "OK"

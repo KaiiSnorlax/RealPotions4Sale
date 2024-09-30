@@ -77,6 +77,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             free_space -= barrel.ml_per_barrel
             barrels_to_buy.append(BarrelOrder(sku=barrel.sku, quantity=1))
 
-    print(f"Barrel catalog: {wholesale_catalog}")
-    print(f"Barrel plan: {barrels_to_buy}")
+    print(f"Barrel catalog: {wholesale_catalog}, Barrel plan: {barrels_to_buy}")
+
     return barrels_to_buy

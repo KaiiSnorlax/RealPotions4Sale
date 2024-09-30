@@ -124,6 +124,7 @@ def post_visits(visit_id: int, customers: list[Customer]):
 @router.post("/")
 def create_cart(new_cart: Customer):
     """ """
+    print(f"This customer created a cart {new_cart}")
     return {"cart_id": 1}
 
 
