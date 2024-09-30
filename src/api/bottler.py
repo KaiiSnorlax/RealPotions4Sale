@@ -64,14 +64,14 @@ def get_bottle_plan():
     elif possible_potions >= free_space:
         potions_to_bottle.append(
             BottlePlan(
-                potion_type=[0, 1, 0, 0],
+                potion_type=[0, 100, 0, 0],
                 quantity=possible_potions - (possible_potions - free_space),
             )
         )
 
     else:
         potions_to_bottle.append(
-            BottlePlan(potion_type=[0, 1, 0, 0], quantity=possible_potions)
+            BottlePlan(potion_type=[0, 100, 0, 0], quantity=possible_potions)
         )
 
     print(f"Bottle plan: {potions_to_bottle}")
