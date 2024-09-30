@@ -63,7 +63,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         )
 
     free_space = 10000 - inventory["num_green_ml"]
-
+    barrels_to_buy = []
     for barrel in wholesale_catalog:
         if (
             inventory["num_green_potions"] < 10
@@ -72,6 +72,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             and (free_space >= barrel.ml_per_barrel)
         ):
             free_space -= barrel.ml_per_barrel
-            return [BarrelOrder(sku=barrel.sku, quantity=1)]
-        else:
-            return []
+            barrels_to_buy.append(BarrelOrder(sku=barrel.sku, quantity=1))
+
+    print(f"Barrel catalog: {wholesale_catalog}")
+    print(f"Barrel plan: {barrels_to_buy}")
+    return barrels_to_buy

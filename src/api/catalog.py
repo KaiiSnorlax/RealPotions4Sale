@@ -23,8 +23,10 @@ def get_catalog():
 
     with db.engine.begin() as connection:
         result = connection.execute(current_stock).mappings().first()
+
+    current_catalog = []
     if result["num_green_potions"] > 0:
-        return [
+        current_catalog.append(
             Catalog(
                 sku="GREEN_POTION_0",
                 name="green potion",
@@ -32,6 +34,6 @@ def get_catalog():
                 price=50,
                 potion_type=(0, 100, 0, 0),
             )
-        ]
-    else:
-        return []
+        )
+    print(f"Catalog: {current_catalog}")
+    return current_catalog

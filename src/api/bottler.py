@@ -55,17 +55,24 @@ def get_bottle_plan():
     free_space = 50 - inventory["num_green_potions"]
     possible_potions = inventory["num_green_ml"] // 100
 
+    potions_to_bottle = []
+
     if (free_space == 0) or (possible_potions == 0):
         return []
     elif possible_potions >= free_space:
-        return [
+        potions_to_bottle.append(
             BottlePlan(
                 potion_type=[0, 1, 0, 0],
                 quantity=possible_potions - (possible_potions - free_space),
             )
-        ]
+        )
+
     else:
-        return BottlePlan(potion_type=[0, 1, 0, 0], quantity=possible_potions)
+        potions_to_bottle.append(
+            BottlePlan(potion_type=[0, 1, 0, 0], quantity=possible_potions)
+        )
+
+    print(f"Bottle plan: {potions_to_bottle}")
 
 
 if __name__ == "__main__":
