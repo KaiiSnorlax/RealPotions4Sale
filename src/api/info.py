@@ -26,4 +26,5 @@ def post_time(timestamp: Timestamp):
     """
     global time
     time = timestamp
-    return str(timestamp)
+    print(f"The day is: {time.day}, The hour is: {time.hour}")
+    return timestamp
