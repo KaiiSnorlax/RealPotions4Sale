@@ -29,7 +29,7 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
 
     for potion in potions_delivered:
         update_global_inventory = sqlalchemy.text(
-            "UPDATE global_inventory SET num_green_potions = num_green_potions + :quantity"
+            "UPDATE global_inventory SET num_green_potions = num_green_potions + :quantity, num_green_ml = num_green_ml - (100 * :quantity)"
         ).bindparams(quantity=potion.quantity)
 
         with db.engine.begin() as connection:
@@ -60,7 +60,7 @@ def get_bottle_plan():
     if (free_space == 0) or (possible_potions == 0):
         print(f"Bottle plan: {potions_to_bottle}")
         return potions_to_bottle
-    
+
     elif possible_potions >= free_space:
         potions_to_bottle.append(
             BottlePlan(
