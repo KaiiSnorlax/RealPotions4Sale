@@ -4,20 +4,13 @@ from pydantic import BaseModel
 from src.api import auth
 import sqlalchemy
 from src import database as db
+from utils import potions_util, ledger
 
 router = APIRouter(
     prefix="/bottler",
     tags=["bottler"],
     dependencies=[Depends(auth.get_api_key)],
 )
-
-with db.engine.begin() as connection:
-    connection.execute(
-        sqlalchemy.text(
-            "UPDATE global_inventory SET num_green_ml = num_green_ml - 100, num_green_potions = num_green_potions + 1 "
-            "WHERE num_green_ml >= 100"
-        )
-    )
 
 
 class PotionInventory(BaseModel):
@@ -27,8 +20,22 @@ class PotionInventory(BaseModel):
 
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
-    """ """
-    print(f"potions delievered: {potions_delivered} order_id: {order_id}")
+
+    # Increment amount of green_potions based on quantity from BottlePlan
+
+    for potion in potions_delivered:
+        sku = potions_util.potion_delivered(
+            potions_util.PotionType(
+                (
+                    potion.potion_type[0],
+                    potion.potion_type[1],
+                    potion.potion_type[2],
+                    potion.potion_type[3],
+                )
+            ),
+            potion.quantity,
+        )
+        print(ledger.account_amount(sku))
 
     return "OK"
 
@@ -39,18 +46,10 @@ def get_bottle_plan():
     Go from barrel to bottle.
     """
 
-    # Each bottle has a quantity of what proportion of red, blue, and
-    # green potion to add.
-    # Expressed in integers from 1 to 100 that must sum up to 100.
-
-    # Initial logic: bottle all barrels into red potions.
-
-    return [
-        {
-            "potion_type": [100, 0, 0, 0],
-            "quantity": 5,
-        }
-    ]
+    # Creates a BottlePlan depending on how many multiples of 100ml of green I have and how much space I have left (assuming I get 50)
+    plan = potions_util.potion_plan()
+    print(f"Bottle plan: {plan}")
+    return plan
 
 
 if __name__ == "__main__":
