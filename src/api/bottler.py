@@ -47,7 +47,7 @@ def get_bottle_plan():
     """
 
     # Creates a BottlePlan depending on how many multiples of 100ml of green I have and how much space I have left (assuming I get 50)
-    plan = potions_util.potion_plan()
+    plan = potions_util.get_potion_recipe()
     print(f"Bottle plan: {plan}")
     return plan
 
