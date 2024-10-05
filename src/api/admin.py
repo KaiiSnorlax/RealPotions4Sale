@@ -1,12 +1,9 @@
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from src.api import auth
-<<<<<<< Updated upstream
-=======
 import sqlalchemy
 from src import database as db
 from utils import ledger
->>>>>>> Stashed changes
 
 router = APIRouter(
     prefix="/admin",
@@ -21,9 +18,6 @@ def reset():
     Reset the game state. Gold goes to 100, all potions are removed from
     inventory, and all barrels are removed from inventory. Carts are all reset.
     """
-<<<<<<< Updated upstream
-=======
-
     delete_ledger_entries = sqlalchemy.text("TRUNCATE table ledger")
     reset_ledger_sequence = sqlalchemy.text(
         "ALTER SEQUENCE ledger_entry_seq RESTART WITH 1"
@@ -44,6 +38,23 @@ def reset():
         "INSERT INTO ledger (account, change) VALUES ('red_ml', 0), ('green_ml', 0), ('blue_ml', 0), ('dark_ml', 0)"
     )
 
+    delete_carts = sqlalchemy.text("TRUNCATE table carts CASCADE")
+    reset_cart_sequence = sqlalchemy.text(
+        "ALTER SEQUENCE carts_cart_id_seq RESTART WITH 1"
+    )
+
+    delete_cart_items = sqlalchemy.text("TRUNCATE table cart_items CASCADE")
+
+    delete_customer_visits = sqlalchemy.text("TRUNCATE table customer_visits CASCADE")
+    reset_customer_visits_sequence = sqlalchemy.text(
+        "ALTER SEQUENCE customer_visits_visit_id_seq RESTART WITH 1"
+    )
+
+    delete_customers = sqlalchemy.text("TRUNCATE table customers CASCADE")
+    reset_customers_sequence = sqlalchemy.text(
+        "ALTER SEQUENCE customers_id_seq RESTART WITH 1"
+    )
+
     with db.engine.begin() as connection:
         connection.execute(delete_ledger_entries)
         connection.execute(reset_ledger_sequence)
@@ -52,8 +63,14 @@ def reset():
         connection.execute(add_default_ml_capacity)
         connection.execute(add_potion_types)
         connection.execute(add_ml_types)
+        connection.execute(delete_cart_items)
+        connection.execute(delete_carts)
+        connection.execute(reset_cart_sequence)
+        connection.execute(delete_customer_visits)
+        connection.execute(reset_customer_visits_sequence)
+        connection.execute(delete_customers)
+        connection.execute(reset_customers_sequence)
 
-    print("ledger reset")
+    print("ledger, carts, and customers reset")
 
->>>>>>> Stashed changes
     return "OK"
