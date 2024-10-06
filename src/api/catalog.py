@@ -1,8 +1,7 @@
 from typing import Tuple
 from fastapi import APIRouter
 from pydantic import BaseModel
-import sqlalchemy
-from src import database as db
+from utils import potions_util
 
 router = APIRouter()
 
@@ -18,6 +17,7 @@ class Catalog(BaseModel):
 @router.get("/catalog/", tags=["catalog"])
 def get_catalog():
 
+<<<<<<< Updated upstream
     # Lists out all green potions in stock, if none are in stock return empty array.
     current_stock = sqlalchemy.text("SELECT num_green_potions FROM global_inventory")
 
@@ -37,3 +37,8 @@ def get_catalog():
         )
     print(f"Catalog: {current_catalog}")
     return current_catalog
+=======
+    catalog = potions_util.get_current_catalog()
+
+    return catalog
+>>>>>>> Stashed changes

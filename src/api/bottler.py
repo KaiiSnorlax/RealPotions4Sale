@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends
-from enum import Enum
 from pydantic import BaseModel
 from src.api import auth
+<<<<<<< Updated upstream
 import sqlalchemy
 from src import database as db
+=======
+from utils import potions_util, ledger
+>>>>>>> Stashed changes
 
 router = APIRouter(
     prefix="/bottler",
@@ -12,8 +15,31 @@ router = APIRouter(
 )
 
 
+<<<<<<< Updated upstream
 class BottlePlan(BaseModel):
     potion_type: list[int]
+=======
+class PotionRecipe(BaseModel):
+    sku: str
+
+    red_ml: int
+    green_ml: int
+    blue_ml: int
+    dark_ml: int
+
+    def from_tuple(sku: str, potion: tuple[int, int, int, int]):
+        return PotionRecipe(
+            sku=sku,
+            red_ml=potion[0],
+            green_ml=potion[1],
+            blue_ml=potion[2],
+            dark_ml=potion[3],
+        )
+
+
+class PotionDelivered(BaseModel):
+    potion_type: PotionRecipe
+>>>>>>> Stashed changes
     quantity: int
 
 
@@ -22,12 +48,23 @@ class PotionInventory(BaseModel):
     quantity: int
 
 
+def fix_data(data: PotionInventory) -> PotionDelivered:
+    return PotionDelivered(
+        potion_type=PotionRecipe.from_tuple(
+            sku=potions_util.get_sku_from_type(data.potion_type),
+            potion=data.potion_type,
+        ),
+        quantity=data.quantity,
+    )
+
+
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
 
     # Increment amount of green_potions based on quantity from BottlePlan
 
     for potion in potions_delivered:
+<<<<<<< Updated upstream
         update_global_inventory = sqlalchemy.text(
             "UPDATE global_inventory SET num_green_potions = num_green_potions + :quantity, num_green_ml = num_green_ml - (100 * :quantity)"
         ).bindparams(quantity=potion.quantity)
@@ -36,6 +73,12 @@ def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int
             connection.execute(update_global_inventory)
 
     print(f"potions delievered: {potions_delivered} order_id: {order_id}")
+=======
+        print(potion)
+        potion = fix_data(potion)
+
+        ledger.potion_delivered(potion)
+>>>>>>> Stashed changes
 
     return "OK"
 

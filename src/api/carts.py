@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
+<<<<<<< Updated upstream
 import sqlalchemy
 from src import database as db
 from src.api import info
+=======
+from utils import customer_util, cart_util, ledger
+>>>>>>> Stashed changes
 
 router = APIRouter(
     prefix="/carts",
@@ -147,10 +151,15 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
     # Decrements potion stock and increments gold depending on customers order.
     # For now, only take into account when one potion bought.
+    # ledger.potion_ledger_entry("red_potion", -5)
 
+<<<<<<< Updated upstream
     update_global_inventory = sqlalchemy.text(
         "UPDATE global_inventory SET num_green_potions = num_green_potions - 1, gold = gold + 50 WHERE num_green_potions > 0"
     )
+=======
+    ledger.potion_sold(cart_id)
+>>>>>>> Stashed changes
 
     with db.engine.begin() as connection:
         connection.execute(update_global_inventory)
