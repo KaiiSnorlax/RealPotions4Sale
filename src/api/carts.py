@@ -2,13 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
-<<<<<<< Updated upstream
-import sqlalchemy
-from src import database as db
-from src.api import info
-=======
 from utils import customer_util, cart_util, ledger
->>>>>>> Stashed changes
 
 router = APIRouter(
     prefix="/carts",
@@ -86,41 +80,11 @@ class Customer(BaseModel):
 @router.post("/visits/{visit_id}")
 def post_visits(visit_id: int, customers: list[Customer]):
     """
-    Add new customers who visited to database
-    Add new and returning customers vistit information to database for data analysis
+    Which customers visited the shop today?
     """
 
     for traveler in customers:
-        with db.engine.begin() as connection:
-            add_new_customer = sqlalchemy.text(
-                "INSERT INTO customers (name, class, level) VALUES (:customer_name, :character_class, :level) ON CONFLICT DO NOTHING"
-            ).bindparams(
-                customer_name=traveler.customer_name,
-                character_class=traveler.character_class,
-                level=traveler.level,
-            )
-            connection.execute(add_new_customer)
-
-            get_customer_id = sqlalchemy.text(
-                "SELECT (customer_id) FROM customers WHERE (name = :customer_name)"
-            ).bindparams(customer_name=traveler.customer_name)
-
-            unique_visit = connection.execute(get_customer_id).mappings().all()
-
-            for visit in unique_visit:
-
-                add_new_visit = sqlalchemy.text(
-                    "INSERT INTO customer_visits (visit_id, customer_id, hour_visited, day_visited) VALUES (:id, :visit, :hour, :day)"
-                ).bindparams(
-                    id=visit_id,
-                    visit=visit["customer_id"],
-                    hour=info.time.hour,
-                    day=info.time.day,
-                )
-
-                connection.execute(add_new_visit)
-
-    print(customers)
+        customer_util.add_new_customer(traveler)
 
     return "OK"
 
@@ -128,8 +92,14 @@ def post_visits(visit_id: int, customers: list[Customer]):
 @router.post("/")
 def create_cart(new_cart: Customer):
     """ """
-    print(f"This customer created a cart {new_cart}")
-    return {"cart_id": 1}
+
+    cart_util.create_new_cart(new_cart)
+
+    cart_id = cart_util.get_cart_id(new_cart)
+
+    print(f"This customer created a cart {new_cart} with a cart id of {cart_id}")
+
+    return {"cart_id": cart_id}
 
 
 class CartItem(BaseModel):
@@ -139,7 +109,11 @@ class CartItem(BaseModel):
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
     """ """
-    return CartItem(quantity=1)
+
+    cart_util.add_item_to_cart(cart_id, item_sku, cart_item.quantity)
+
+    print(f"added {cart_item.quantity} {item_sku} to cart {cart_id}")
+    return cart_item.quantity
 
 
 class CartCheckout(BaseModel):
@@ -153,16 +127,7 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     # For now, only take into account when one potion bought.
     # ledger.potion_ledger_entry("red_potion", -5)
 
-<<<<<<< Updated upstream
-    update_global_inventory = sqlalchemy.text(
-        "UPDATE global_inventory SET num_green_potions = num_green_potions - 1, gold = gold + 50 WHERE num_green_potions > 0"
-    )
-=======
     ledger.potion_sold(cart_id)
->>>>>>> Stashed changes
-
-    with db.engine.begin() as connection:
-        connection.execute(update_global_inventory)
 
     print("total_potions_bought: 1", "total_gold_paid: 50")
 

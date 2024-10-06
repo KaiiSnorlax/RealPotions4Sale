@@ -2,10 +2,7 @@ from fastapi import APIRouter, Depends
 from src.api import auth
 import sqlalchemy
 from src import database as db
-<<<<<<< Updated upstream
-=======
 from utils import potions_util
->>>>>>> Stashed changes
 
 router = APIRouter(
     prefix="/admin",
@@ -20,10 +17,6 @@ def reset():
     Reset the game state. Gold goes to 100, all potions are removed from
     inventory, and all barrels are removed from inventory. Carts are all reset.
     """
-<<<<<<< Updated upstream
-
-    with db.engine.begin() as connection:
-=======
 
     recipes = potions_util.get_potion_recipes()
 
@@ -102,14 +95,7 @@ def reset():
         connection.execute(reset_customer_visits_sequence)
         connection.execute(delete_customers)
         connection.execute(reset_customers_sequence)
->>>>>>> Stashed changes
 
-        connection.execute(
-            sqlalchemy.text(
-                "UPDATE global_inventory SET gold = 100, num_green_potions = 0, num_green_ml = 0"
-            )
-        )
-
-    print("global_inventory reset to scratch")
+    print("ledger, carts, and customers reset")
 
     return "OK"

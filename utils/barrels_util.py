@@ -79,11 +79,11 @@ def create_barrel_plan(wholesale_catalog: list[Barrel]):
 
 
 def get_barrel_type(barrel: Barrel):
-    if barrel.potion_type[0] == 1:
+    if barrel[0] == 1:
         return "red_ml"
-    elif barrel.potion_type[1] == 1:
+    elif barrel[1] == 1:
         return "green_ml"
-    elif barrel.potion_type[2] == 1:
+    elif barrel[2] == 1:
         return "blue_ml"
     else:
         return "dark_ml"
@@ -92,13 +92,3 @@ def get_barrel_type(barrel: Barrel):
 def barrel_delivered(barrel: Barrel):
 
     ledger.barrel_bought(barrel)
-
-
-class Barrel(BaseModel):
-    sku: str
-
-    ml_per_barrel: int
-    potion_type: list[int]
-    price: int
-
-    quantity: int

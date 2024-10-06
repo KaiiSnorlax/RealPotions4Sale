@@ -7,17 +7,17 @@ import logging
 from starlette.middleware.cors import CORSMiddleware
 
 description = """
-Been scammed one too many times? RealPotions4Sale has your back! 
+Central Coast Cauldrons is the premier ecommerce site for all your alchemical desires.
 """
 
 app = FastAPI(
-    title="RealPotions4Sale",
+    title="Central Coast Cauldrons",
     description=description,
     version="0.0.1",
     terms_of_service="http://example.com/terms/",
     contact={
-        "name": "Kai Swangler",
-        "email": "kswangle@calpoly.edu",
+        "name": "Lucas Pierce",
+        "email": "lupierce@calpoly.edu",
     },
 )
 
@@ -54,4 +54,4 @@ async def validation_exception_handler(request, exc):
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to RealPotions4Sale!"}
+    return {"message": "Welcome to the Central Coast Cauldrons."}

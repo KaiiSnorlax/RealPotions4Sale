@@ -65,7 +65,7 @@ def potion_ledger_entry(sku: str, change: int):
 
 def barrel_bought(barrel: Barrel):
     color = barrels_util.get_barrel_type(barrel.potion_type)
-    description = f"Barrel Purchased: Purchased {color} (x{barrel.quantity}) for {barrel.ml_per_barrel} each"
+    description = f"Barrel Purchased: Purchased {color} (x{barrel.quantity}); containing {barrel.ml_per_barrel}; costing {barrel.price} gold each."
 
     transaction_entry = sqlalchemy.text(
         "INSERT INTO transactions (description) VALUES (:description)"
