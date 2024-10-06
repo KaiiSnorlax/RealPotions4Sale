@@ -5,7 +5,6 @@ from src.api.barrels import Barrel
 from utils import barrels_util, potions_util
 
 
-
 colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
 
 
@@ -19,9 +18,7 @@ def potion_sold(cart_id: int):
         transaction = connection.execute(get_transaction_info).mappings().all()
 
     for entry in range(len(transaction)):
-        description = (
-            f"Potion Sold: {transaction[entry]["name"]} purchased {transaction[entry]["sku"]} (x{transaction[entry]["quantity"]}) for {transaction[entry]["price"]} gold each."
-        )  
+        description = f"Potion Sold: {transaction[entry]['name']} purchased {transaction[entry]['sku']} (x{transaction[entry]['quantity']}) for {transaction[entry]['price']} gold each."
         transaction_entry = sqlalchemy.text(
             "INSERT INTO transactions (description) VALUES (:description)"
         ).bindparams(description=description)
@@ -34,11 +31,9 @@ def potion_sold(cart_id: int):
         potion_ledger_entry(transaction[entry]["sku"], -transaction[entry]["quantity"])
 
 
-
 def potion_delivered(potion: PotionDelivered):
 
-    description = (
-        f"Potion Delivered: {potion.potion_type.sku} (x{potion.quantity})")
+    description = f"Potion Delivered: {potion.potion_type.sku} (x{potion.quantity})"
 
     transaction_entry = sqlalchemy.text(
         "INSERT INTO transactions (description) VALUES (:description)"
@@ -51,7 +46,9 @@ def potion_delivered(potion: PotionDelivered):
 
     for color in colors:
         if getattr(potion.potion_type, color) != 0:
-            liquid_ledger_entry(color, -(getattr(potion.potion_type, color) * potion.quantity))
+            liquid_ledger_entry(
+                color, -(getattr(potion.potion_type, color) * potion.quantity)
+            )
 
 
 def potion_ledger_entry(sku: str, change: int):
@@ -115,9 +112,6 @@ def liquid_capacity_ledger_entry(color: str, change: int):
         connection.execute(ledger_potion_entry)
 
 
-
-
-
 def liquid_ledger_sum(color: str) -> int:
 
     ledger = sqlalchemy.text(
@@ -141,17 +135,16 @@ def potion_ledger_sum(sku: str) -> int:
 
     return result["sum"]
 
+
 def all_potions_sum() -> int:
 
-    ledger = sqlalchemy.text(
-        "SELECT sum(change) FROM potion_ledger"
-    )
+    ledger = sqlalchemy.text("SELECT sum(change) FROM potion_ledger")
 
     with db.engine.begin() as connection:
         result = connection.execute(ledger).mappings().first()
 
     return result["sum"]
-    
+
 
 def gold_ledger_sum() -> int:
 
@@ -165,16 +158,21 @@ def gold_ledger_sum() -> int:
 
 def liquid_capacity_sum() -> int:
 
-    ledger = sqlalchemy.text("SELECT sum(change) FROM capacity_ledger WHERE type = 'liquid'")
+    ledger = sqlalchemy.text(
+        "SELECT sum(change) FROM capacity_ledger WHERE type = 'liquid'"
+    )
 
     with db.engine.begin() as connection:
         result = connection.execute(ledger).mappings().first()
 
     return result["sum"]
 
+
 def potion_capacity_sum() -> int:
 
-    ledger = sqlalchemy.text("SELECT sum(change) FROM capacity_ledger WHERE type = 'potion'")
+    ledger = sqlalchemy.text(
+        "SELECT sum(change) FROM capacity_ledger WHERE type = 'potion'"
+    )
 
     with db.engine.begin() as connection:
         result = connection.execute(ledger).mappings().first()
