@@ -79,11 +79,11 @@ def create_barrel_plan(wholesale_catalog: list[Barrel]):
 
 
 def get_barrel_type(barrel: Barrel):
-    if barrel[0] == 1:
+    if barrel.potion_type[0] == 1:
         return "red_ml"
-    elif barrel[1] == 1:
+    elif barrel.potion_type[1] == 1:
         return "green_ml"
-    elif barrel[2] == 1:
+    elif barrel.potion_type[2] == 1:
         return "blue_ml"
     else:
         return "dark_ml"
