@@ -146,6 +146,16 @@ def all_potions_sum() -> int:
     return result["sum"]
 
 
+def all_liquid_sum() -> int:
+
+    ledger = sqlalchemy.text("SELECT sum(change) FROM liquid_ledger")
+
+    with db.engine.begin() as connection:
+        result = connection.execute(ledger).mappings().first()
+
+    return result["sum"]
+
+
 def gold_ledger_sum() -> int:
 
     ledger = sqlalchemy.text("SELECT sum(change) FROM gold_ledger")
