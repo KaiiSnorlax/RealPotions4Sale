@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
-from utils import customer_util, cart_util, ledger
+from src.utils import customer_util, cart_util, ledger
 
 router = APIRouter(
     prefix="/carts",
@@ -11,14 +11,28 @@ router = APIRouter(
 )
 
 
-class search_sort_options(str, Enum):
+class SearchResultsEntry(BaseModel):
+    line_item_id: int
+    item_sku: str
+    customer_name: str
+    line_item_total: int
+    timestamp: str
+
+
+class SearchResults(BaseModel):
+    previous: str
+    next: str
+    results: list[SearchResultsEntry]
+
+
+class SearchSortOptions(str, Enum):
     customer_name = "customer_name"
     item_sku = "item_sku"
     line_item_total = "line_item_total"
     timestamp = "timestamp"
 
 
-class search_sort_order(str, Enum):
+class SearchSortOrder(str, Enum):
     asc = "asc"
     desc = "desc"
 
@@ -28,8 +42,8 @@ def search_orders(
     customer_name: str = "",
     potion_sku: str = "",
     search_page: str = "",
-    sort_col: search_sort_options = search_sort_options.timestamp,
-    sort_order: search_sort_order = search_sort_order.desc,
+    sort_col: SearchSortOptions = SearchSortOptions.timestamp,
+    sort_order: SearchSortOrder = SearchSortOrder.desc,
 ):
     """
     Search for cart line items by customer name and/or potion sku.
@@ -56,19 +70,19 @@ def search_orders(
     time is 5 total line items.
     """
 
-    return {
-        "previous": "",
-        "next": "",
-        "results": [
-            {
-                "line_item_id": 1,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            }
+    return SearchResults(
+        previous="",
+        next="",
+        results=[
+            SearchResultsEntry(
+                line_item_id=1,
+                item_sku="1 oblivion potion",
+                customer_name="Scaramouche",
+                line_item_total=50,
+                timestamp="2021-01-01T00:00:00Z",
+            )
         ],
-    }
+    )
 
 
 class Customer(BaseModel):
@@ -79,25 +93,32 @@ class Customer(BaseModel):
 
 @router.post("/visits/{visit_id}")
 def post_visits(visit_id: int, customers: list[Customer]):
-    """
-    Which customers visited the shop today?
-    """
 
-    for traveler in customers:
-        customer_util.add_new_customer(traveler)
+    # Which customers visited the shop today?
 
+    for customer in customers:
+        customer_util.add_new_customer(
+            customer.customer_name, customer.character_class, customer.level
+        )
+
+    print(f"Customers Visited: {customers}")
     return "OK"
 
 
 @router.post("/")
-def create_cart(new_cart: Customer):
-    """ """
+def create_cart(customer: Customer):
 
-    cart_util.create_new_cart(new_cart)
+    cart_util.create_new_cart(
+        customer.customer_name, customer.character_class, customer.level
+    )
 
-    cart_id = cart_util.get_cart_id(new_cart)
+    cart_id = cart_util.get_cart_id(
+        customer.customer_name, customer.character_class, customer.level
+    )
 
-    print(f"This customer created a cart {new_cart} with a cart id of {cart_id}")
+    print(
+        f"Cart Created: {customer.customer_name} (level: {customer.level}, class: {customer.character_class}) created a cart with an id of {cart_id}"
+    )
 
     return {"cart_id": cart_id}
 
@@ -108,11 +129,12 @@ class CartItem(BaseModel):
 
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
-    """ """
 
     cart_util.add_item_to_cart(cart_id, item_sku, cart_item.quantity)
 
-    print(f"added {cart_item.quantity} {item_sku} to cart {cart_id}")
+    print(
+        f"Item Added to Cart: added {item_sku} (x{cart_item.quantity}) to cart {cart_id}"
+    )
     return cart_item.quantity
 
 
@@ -127,8 +149,13 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     # For now, only take into account when one potion bought.
     # ledger.potion_ledger_entry("red_potion", -5)
 
-    ledger.potion_sold(cart_id)
+    transaction_total = ledger.potion_sold(cart_id)
 
-    print("total_potions_bought: 1", "total_gold_paid: 50")
+    print(
+        f"Cart Checkout: cart {cart_id} purchased {transaction_total[0]} potions totalling {transaction_total[1]} gold"
+    )
 
-    return {"total_potions_bought": 1, "total_gold_paid": 50}
+    return {
+        "total_potions_bought": transaction_total[0],
+        "total_gold_paid": transaction_total[1],
+    }

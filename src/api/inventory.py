@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
-from utils import ledger
+from src.utils import ledger
 
 router = APIRouter(
     prefix="/inventory",
@@ -10,14 +10,26 @@ router = APIRouter(
 )
 
 
+class Inventory(BaseModel):
+    potions: int
+    liquids: int
+    gold: int
+
+
 @router.get("/audit")
 def get_inventory():
-    """ """
+    inventory = Inventory(
+        potions=ledger.all_potions_sum(),
+        liquids=ledger.all_liquid_sum(),
+        gold=ledger.gold_ledger_sum(),
+    )
+
+    print(f"Audit: {inventory}")
 
     return {
-        "number_of_potions": ledger.all_potions_sum(),
-        "ml_in_barrels": ledger.all_liquid_sum(),
-        "gold": ledger.gold_ledger_sum(),
+        "number_of_potions": inventory.potions,
+        "ml_in_barrels": inventory.liquids,
+        "gold": inventory.gold,
     }
 
 

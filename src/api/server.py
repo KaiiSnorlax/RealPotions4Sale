@@ -1,4 +1,4 @@
-from fastapi import FastAPI, exceptions
+from fastapi import FastAPI, Request, exceptions
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from src.api import carts, catalog, bottler, barrels, admin, info, inventory
@@ -9,6 +9,12 @@ from starlette.middleware.cors import CORSMiddleware
 description = """
 Central Coast Cauldrons is the premier ecommerce site for all your alchemical desires.
 """
+
+
+class BadRequest:
+    message: list[str] = []
+    data: None = None
+
 
 app = FastAPI(
     title="Central Coast Cauldrons",
@@ -40,14 +46,16 @@ app.include_router(admin.router)
 app.include_router(info.router)
 
 
-@app.exception_handler(exceptions.RequestValidationError)
-@app.exception_handler(ValidationError)
-async def validation_exception_handler(request, exc):
+@app.exception_handler(exceptions.RequestValidationError)  # type: ignore
+@app.exception_handler(ValidationError)  # type: ignore
+async def validation_exception_handler(
+    request: Request, exc: exceptions.RequestValidationError | ValidationError
+):
     logging.error(f"The client sent invalid data!: {exc}")
     exc_json = json.loads(exc.json())
-    response = {"message": [], "data": None}
+    response = BadRequest()
     for error in exc_json:
-        response["message"].append(f"{error['loc']}: {error['msg']}")
+        response.message.append(f"{error['loc']}: {error['msg']}")
 
     return JSONResponse(response, status_code=422)
 

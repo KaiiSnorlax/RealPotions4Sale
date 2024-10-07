@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
-from utils import barrels_util, ledger
+from src.utils import barrels_util
 
 router = APIRouter(
     prefix="/barrels",
@@ -36,7 +36,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
             )
         )
 
-    print(f"barrels delievered: {barrels_delivered} order_id: {order_id}")
+    print(f"Barrels Delievered: {barrels_delivered} order_id: {order_id}")
 
     return "OK"
 

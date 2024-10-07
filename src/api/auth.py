@@ -5,10 +5,13 @@ import dotenv
 
 dotenv.load_dotenv()
 
-api_keys = []
+api_keys: list[str] = []
+api_key = os.environ.get("API_KEY")
 
+if api_key is None:
+    raise RuntimeError("No API KEY provided")
 
-api_keys.append(os.environ.get("API_KEY"))
+api_keys.append(api_key)
 api_key_header = APIKeyHeader(name="access_token", auto_error=False)
 
 

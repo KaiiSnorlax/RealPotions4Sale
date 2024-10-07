@@ -1,10 +1,9 @@
 from pydantic import BaseModel
 import sqlalchemy
 from src import database as db
-from utils import ledger
-from utils.barrels_util import LiquidInventory
-from utils import barrels_util
+from src.utils.barrels_util import LiquidInventory
 from src.api.catalog import Catalog
+from src.utils import barrels_util, ledger
 
 colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
 
@@ -19,6 +18,7 @@ class PotionRecipe(BaseModel):
     blue_ml: int
     dark_ml: int
 
+    @staticmethod
     def from_tuple(sku: str, name: str, price: int, potion: tuple[int, int, int, int]):
         return PotionRecipe(
             sku=sku,
@@ -36,9 +36,9 @@ class BottlePlan(BaseModel):
     quantity: int
 
 
-def create_bottle_plan():
+def create_bottle_plan() -> list[BottlePlan]:
     recipes = get_potion_recipes()
-    bottle_plan = []
+    bottle_plan: list[BottlePlan] = []
 
     free_space = ledger.potion_capacity_sum() - ledger.all_potions_sum()
 
@@ -76,13 +76,16 @@ def create_bottle_plan():
     return bottle_plan
 
 
-def get_potion_recipes():
-    recipes = []
+def get_potion_recipes() -> list[PotionRecipe]:
+    recipes: list[PotionRecipe] = []
 
     with db.engine.begin() as connection:
         result = connection.execute(
             sqlalchemy.text(
-                "SELECT sku, name, price, red_ml, green_ml, blue_ml, dark_ml FROM potion_recipes"
+                """SELECT
+                    sku, potion_name, price, red_ml, green_ml, blue_ml, dark_ml
+                   FROM
+                    potion_recipes"""
             )
         )
         for row in result:
@@ -100,8 +103,9 @@ def get_potion_recipes():
 
 def get_max_recipe_craftable(
     recipe: PotionRecipe, liquid_in_inventory: LiquidInventory
-):
-    craftable_per_color = []
+) -> int:
+    craftable_per_color: list[int] = []
+
     for color in colors:
         if getattr(recipe, color) != 0:
             craftable_per_color.append(
@@ -111,23 +115,25 @@ def get_max_recipe_craftable(
     return min(craftable_per_color)
 
 
-def get_sku_from_type(potion_type: list[int]):
-    recipes = get_potion_recipes()
+def get_sku_from_type(potion_type: tuple[int, int, int, int]) -> str:
+    recipes: list[PotionRecipe] = get_potion_recipes()
 
     for recipe in recipes:
-        if (
-            potion_type[0] == recipe.red_ml
-            and potion_type[1] == recipe.green_ml
-            and potion_type[2] == recipe.blue_ml
-            and potion_type[3] == recipe.dark_ml
+        if potion_type == (
+            recipe.red_ml,
+            recipe.green_ml,
+            recipe.blue_ml,
+            recipe.dark_ml,
         ):
             return recipe.sku
 
+    raise RuntimeError(f"Potion type {potion_type} not found in table: potion_recipes")
 
-def get_current_catalog():
-    recipes = get_potion_recipes()
-    spots = 6
-    catalog = []
+
+def get_current_catalog() -> list[Catalog]:
+    recipes: list[PotionRecipe] = get_potion_recipes()
+    catalog: list[Catalog] = []
+    spots: int = 6
 
     for recipe in recipes:
         if ledger.potion_ledger_sum(recipe.sku) > 0 and spots > 0:
@@ -137,12 +143,12 @@ def get_current_catalog():
                     name=recipe.name,
                     quantity=ledger.potion_ledger_sum(recipe.sku),
                     price=recipe.price,
-                    potion_type=[
+                    potion_type=(
                         recipe.red_ml,
                         recipe.green_ml,
                         recipe.blue_ml,
                         recipe.dark_ml,
-                    ],
+                    ),
                 )
             )
             spots -= 1
