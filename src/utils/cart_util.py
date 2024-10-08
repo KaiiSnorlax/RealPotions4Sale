@@ -3,7 +3,7 @@ from src import database as db
 from src.utils import ledger
 
 
-def create_new_cart(customer_name: str, customer_class: str, customer_level: int):
+def create_new_cart(customer_name: str, customer_class: str, customer_level: int) -> int | None:
 
     cart = sqlalchemy.text(
         """INSERT INTO
@@ -16,7 +16,8 @@ def create_new_cart(customer_name: str, customer_class: str, customer_level: int
            WHERE customers.name = :customer_name
             AND customers.class = :customer_class
             AND customers.level = :customer_level
-           ON CONFLICT DO NOTHING"""
+           ON CONFLICT DO NOTHING
+           RETURNING cart_id"""
     ).bindparams(
         customer_name=customer_name,
         customer_class=customer_class,
@@ -24,36 +25,14 @@ def create_new_cart(customer_name: str, customer_class: str, customer_level: int
     )
 
     with db.engine.begin() as connection:
-        connection.execute(cart)
+        create_cart = connection.execute(cart).first()
 
-
-def get_cart_id(customer_name: str, customer_class: str, customer_level: int):
-
-    cart_id_query = sqlalchemy.text(
-        """SELECT
-            max(cart_id)
-           FROM
-            customer_visits
-            JOIN carts ON customer_visits.visit_id = carts.visit_id
-            JOIN customers ON customers.customer_id = customer_visits.customer_id
-           WHERE customers.name = :customer_name
-            AND customers.class = :customer_class
-            AND customers.level = :customer_level"""
-    ).bindparams(
-        customer_name=customer_name,
-        customer_class=customer_class,
-        customer_level=customer_level,
-    )
-
-    with db.engine.begin() as connection:
-        cart_id = connection.execute(cart_id_query).first()
-
-    if cart_id is None:
-        raise RuntimeError(
-            f"({customer_name}, {customer_class}, {customer_level}) has not made a cart in table: carts"
-        )
-
-    return cart_id[0]
+    if create_cart is None:
+        raise RuntimeError(f"Failed to create a cart for {customer_name, customer_class, customer_level}")
+    
+    cart_id = create_cart[0]
+    
+    return cart_id
 
 
 def add_item_to_cart(cart_id: int, item_sku: str, quantity: int):
@@ -71,7 +50,7 @@ def add_item_to_cart(cart_id: int, item_sku: str, quantity: int):
     return
 
 
-def cart_checkout(cart_id: int):
+def cart_checkout(cart_id: int) -> int:
     cart_total = 0
     cart_items = sqlalchemy.text(
         """SELECT
@@ -89,4 +68,4 @@ def cart_checkout(cart_id: int):
             ledger.potion_ledger_entry(potion["sku"], -potion["quantity"])
             ledger.gold_ledger_entry((potion["price"] * potion["quantity"]))
 
-    print(cart_total)
+    return cart_total

@@ -108,11 +108,7 @@ def post_visits(visit_id: int, customers: list[Customer]):
 @router.post("/")
 def create_cart(customer: Customer):
 
-    cart_util.create_new_cart(
-        customer.customer_name, customer.character_class, customer.level
-    )
-
-    cart_id = cart_util.get_cart_id(
+    cart_id = cart_util.create_new_cart(
         customer.customer_name, customer.character_class, customer.level
     )
 
