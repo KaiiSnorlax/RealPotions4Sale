@@ -5,6 +5,7 @@ from src.utils.barrels_util import LiquidInventory
 from src.api.catalog import Catalog
 from src.utils import barrels_util, ledger
 
+
 colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
 
 

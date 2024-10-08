@@ -2,9 +2,9 @@ from src.utils import ledger
 from pydantic import BaseModel
 from src.api.barrels import Barrel
 
+colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
 
 class LiquidInventory(BaseModel):
-
     red_ml: int
     green_ml: int
     blue_ml: int
@@ -22,8 +22,7 @@ class BarrelOrder(BaseModel):
     quantity: int
 
 
-def get_liquid_amount():
-
+def get_liquid_amount() -> LiquidInventory:
     liquid_in_inventory = LiquidInventory.from_tuple(
         (
             ledger.liquid_ledger_sum("red_ml"),
@@ -36,45 +35,20 @@ def get_liquid_amount():
     return liquid_in_inventory
 
 
-def create_barrel_plan(wholesale_catalog: list[Barrel]):
-    barrels_to_buy: list[BarrelOrder] = []
+def get_avaliable_liquid_space(liquid_in_inventory: LiquidInventory) -> int:
+    liquid_capacity: int = ledger.liquid_capacity_sum()
 
-    liquid_in_inventory: LiquidInventory = get_liquid_amount()
-    current_gold: int = ledger.gold_ledger_sum()
-    current_liquid_capacity: int = ledger.liquid_capacity_sum()
-
-    free_space = current_liquid_capacity - (
+    avaliable_space: int = liquid_capacity - (
         liquid_in_inventory.red_ml
         + liquid_in_inventory.green_ml
         + liquid_in_inventory.blue_ml
         + liquid_in_inventory.dark_ml
     )
 
-    priority_color = min(liquid_in_inventory, key=lambda x: x[1])[0]
-
-    for barrel in wholesale_catalog:
-        if (
-            get_barrel_type(barrel) == priority_color
-            and barrel.price <= current_gold
-            and free_space >= current_liquid_capacity
-        ):
-            current_gold -= barrel.price
-            barrels_to_buy.append(BarrelOrder(sku=barrel.sku, quantity=1))
-
-            setattr(
-                liquid_in_inventory,
-                priority_color,
-                (getattr(liquid_in_inventory, priority_color) + barrel.ml_per_barrel),
-            )
-
-            free_space -= barrel.ml_per_barrel
-
-            priority_color = min(liquid_in_inventory, key=lambda x: x[1])[0]
-
-    return barrels_to_buy
+    return avaliable_space
 
 
-def get_barrel_type(barrel: Barrel):
+def get_barrel_type(barrel: Barrel) -> str:
     if barrel.potion_type[0] == 1:
         return "red_ml"
     elif barrel.potion_type[1] == 1:
@@ -85,6 +59,49 @@ def get_barrel_type(barrel: Barrel):
         return "dark_ml"
 
 
-def barrel_delivered(barrel: Barrel):
+# Creates a barrel plan depending of colors with stocks of 0.
+# ** Will need to change in future when potions are not only 100ml of one color ** 
+def create_barrel_plan(wholesale_catalog: list[Barrel]) -> list[BarrelOrder]:
+    liquid_in_inventory: LiquidInventory = get_liquid_amount()
+    avaliable_space: int = get_avaliable_liquid_space(liquid_in_inventory)
+    avaliable_gold: int = ledger.gold_ledger_sum()
+
+    barrels_to_buy: list[BarrelOrder] = []
+    for color in colors:
+        if getattr(liquid_in_inventory, color) == 0:
+            largest_barrel = get_largest_barrel(color, wholesale_catalog, avaliable_gold, avaliable_space)[0]
+            avaliable_gold = get_largest_barrel(color, wholesale_catalog, avaliable_gold, avaliable_space)[1]
+            avaliable_space = get_largest_barrel(color, wholesale_catalog, avaliable_gold, avaliable_space)[2]
+
+            if largest_barrel is None:
+                continue
+            else:
+                barrels_to_buy.append(largest_barrel)
+
+    return barrels_to_buy
+
+
+# Returns the largest barrel that a. we can afford, and b. wont overflow our storage.
+def get_largest_barrel(color: str, wholesale_catalog: list[Barrel], avaliable_gold: int, avaliable_space: int) -> tuple[BarrelOrder | None, int, int]:
+    largest_barrel: Barrel | None = None
+
+    for barrel in wholesale_catalog:
+        if (get_barrel_type(barrel) == color) and (avaliable_gold >= barrel.price) and (avaliable_space >= barrel.ml_per_barrel):
+            if largest_barrel is None:
+                largest_barrel = barrel
+
+            elif barrel.ml_per_barrel > largest_barrel.ml_per_barrel:
+                largest_barrel = barrel
+
+    if largest_barrel is None:
+        return None, avaliable_gold, avaliable_space
+    
+    avaliable_gold -= largest_barrel.price
+    avaliable_space -= largest_barrel.ml_per_barrel
+
+    return BarrelOrder(sku=largest_barrel.sku, quantity=1), avaliable_gold, avaliable_space
+
+
+def barrel_delivered(barrel: Barrel) -> None:
 
     ledger.barrel_bought(barrel)

@@ -146,8 +146,6 @@ class CartCheckout(BaseModel):
 def checkout(cart_id: int, cart_checkout: CartCheckout):
 
     # Decrements potion stock and increments gold depending on customers order.
-    # For now, only take into account when one potion bought.
-    # ledger.potion_ledger_entry("red_potion", -5)
 
     transaction_total = ledger.potion_sold(cart_id)
 

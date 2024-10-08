@@ -23,8 +23,6 @@ class Barrel(BaseModel):
 @router.post("/deliver/{order_id}")
 def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 
-    # Updates inventory stock considering a. how many barrels bought and b. barrel price
-
     for barrel in barrels_delivered:
         barrels_util.barrel_delivered(
             Barrel(
@@ -44,8 +42,6 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 # Gets called once a day
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
-
-    # Purchase a green barrel if I have less than 10 green potions, enough gold, and if enough space in inventory (assuming I get 10000)
 
     barrels_to_buy = barrels_util.create_barrel_plan(wholesale_catalog)
 
