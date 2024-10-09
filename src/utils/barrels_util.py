@@ -4,6 +4,7 @@ from src.api.barrels import Barrel
 
 colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
 
+
 class LiquidInventory(BaseModel):
     red_ml: int
     green_ml: int
@@ -60,7 +61,7 @@ def get_barrel_type(barrel: Barrel) -> str:
 
 
 # Creates a barrel plan depending of colors with stocks of 0.
-# ** Will need to change in future when potions are not only 100ml of one color ** 
+# ** Will need to change in future when potions are not only 100ml of one color **
 def create_barrel_plan(wholesale_catalog: list[Barrel]) -> list[BarrelOrder]:
     liquid_in_inventory: LiquidInventory = get_liquid_amount()
     avaliable_space: int = get_avaliable_liquid_space(liquid_in_inventory)
@@ -69,9 +70,15 @@ def create_barrel_plan(wholesale_catalog: list[Barrel]) -> list[BarrelOrder]:
     barrels_to_buy: list[BarrelOrder] = []
     for color in colors:
         if getattr(liquid_in_inventory, color) == 0:
-            largest_barrel = get_largest_barrel(color, wholesale_catalog, avaliable_gold, avaliable_space)[0]
-            avaliable_gold = get_largest_barrel(color, wholesale_catalog, avaliable_gold, avaliable_space)[1]
-            avaliable_space = get_largest_barrel(color, wholesale_catalog, avaliable_gold, avaliable_space)[2]
+            largest_barrel = get_largest_barrel(
+                color, wholesale_catalog, avaliable_gold, avaliable_space
+            )[0]
+            avaliable_gold = get_largest_barrel(
+                color, wholesale_catalog, avaliable_gold, avaliable_space
+            )[1]
+            avaliable_space = get_largest_barrel(
+                color, wholesale_catalog, avaliable_gold, avaliable_space
+            )[2]
 
             if largest_barrel is None:
                 continue
@@ -82,11 +89,21 @@ def create_barrel_plan(wholesale_catalog: list[Barrel]) -> list[BarrelOrder]:
 
 
 # Returns the largest barrel that a. we can afford, and b. wont overflow our storage.
-def get_largest_barrel(color: str, wholesale_catalog: list[Barrel], avaliable_gold: int, avaliable_space: int) -> tuple[BarrelOrder | None, int, int]:
+def get_largest_barrel(
+    color: str,
+    wholesale_catalog: list[Barrel],
+    avaliable_gold: int,
+    avaliable_space: int,
+) -> tuple[BarrelOrder | None, int, int]:
     largest_barrel: Barrel | None = None
 
     for barrel in wholesale_catalog:
-        if (get_barrel_type(barrel) == color) and (avaliable_gold >= barrel.price) and (avaliable_space >= barrel.ml_per_barrel):
+        if (
+            (get_barrel_type(barrel) == color)
+            and (avaliable_gold >= barrel.price)
+            and (avaliable_space >= barrel.ml_per_barrel)
+            and barrel.ml_per_barrel <= 2500
+        ):
             if largest_barrel is None:
                 largest_barrel = barrel
 
@@ -95,11 +112,15 @@ def get_largest_barrel(color: str, wholesale_catalog: list[Barrel], avaliable_go
 
     if largest_barrel is None:
         return None, avaliable_gold, avaliable_space
-    
+
     avaliable_gold -= largest_barrel.price
     avaliable_space -= largest_barrel.ml_per_barrel
 
-    return BarrelOrder(sku=largest_barrel.sku, quantity=1), avaliable_gold, avaliable_space
+    return (
+        BarrelOrder(sku=largest_barrel.sku, quantity=1),
+        avaliable_gold,
+        avaliable_space,
+    )
 
 
 def barrel_delivered(barrel: Barrel) -> None:
