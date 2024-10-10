@@ -69,7 +69,7 @@ def create_barrel_plan(wholesale_catalog: list[Barrel]) -> list[BarrelOrder]:
 
     barrels_to_buy: list[BarrelOrder] = []
     for color in colors:
-        if getattr(liquid_in_inventory, color) == 0:
+        if getattr(liquid_in_inventory, color) <= 100:
             largest_barrel = get_largest_barrel(
                 color, wholesale_catalog, avaliable_gold, avaliable_space
             )[0]
