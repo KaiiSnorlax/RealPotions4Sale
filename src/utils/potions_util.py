@@ -10,7 +10,6 @@ colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
 
 
 class PotionRecipe(BaseModel):
-    potion_id: int
     sku: str
     name: str
     price: int
@@ -21,9 +20,8 @@ class PotionRecipe(BaseModel):
     dark_ml: int
 
     @staticmethod
-    def from_tuple(potion_id: int, sku: str, name: str, price: int, potion: tuple[int, int, int, int]):
+    def from_tuple(sku: str, name: str, price: int, potion: tuple[int, int, int, int]):
         return PotionRecipe(
-            potion_id=potion_id,
             sku=sku,
             name=name,
             price=price,
@@ -93,7 +91,7 @@ def get_potion_recipes() -> list[PotionRecipe]:
         result = connection.execute(
             sqlalchemy.text(
                 """SELECT
-                    potion_id, sku, potion_name, price, red_ml, green_ml, blue_ml, dark_ml
+                    sku, potion_name, price, red_ml, green_ml, blue_ml, dark_ml
                    FROM
                     potion_recipes"""
             )
@@ -101,11 +99,10 @@ def get_potion_recipes() -> list[PotionRecipe]:
         for row in result:
             recipes.append(
                 PotionRecipe.from_tuple(
-                    potion_id=row[0],
-                    sku=row[1],
-                    name=row[2],
-                    price=row[3],
-                    potion=(row[4], row[5], row[6], row[7]),
+                    sku=row[0],
+                    name=row[1],
+                    price=row[2],
+                    potion=(row[3], row[4], row[5], row[6]),
                 )
             )
 
