@@ -10,6 +10,7 @@ colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
 
 
 class PotionRecipe(BaseModel):
+    potion_id: int
     sku: str
     name: str
     price: int
@@ -20,8 +21,9 @@ class PotionRecipe(BaseModel):
     dark_ml: int
 
     @staticmethod
-    def from_tuple(sku: str, name: str, price: int, potion: tuple[int, int, int, int]):
+    def from_tuple(potion_id: int, sku: str, name: str, price: int, potion: tuple[int, int, int, int]):
         return PotionRecipe(
+            potion_id=potion_id,
             sku=sku,
             name=name,
             price=price,
@@ -58,9 +60,15 @@ def create_bottle_plan() -> list[BottlePlan]:
             if max_craftable > free_space:
                 can_make = free_space
                 free_space = 0
+
             else:
                 can_make = max_craftable
                 free_space -= can_make
+            
+            liquid_in_inventory.red_ml -= (can_make * recipe.red_ml)
+            liquid_in_inventory.green_ml -= (can_make * recipe.green_ml)
+            liquid_in_inventory.blue_ml -= (can_make * recipe.blue_ml)
+            liquid_in_inventory.dark_ml -= (can_make * recipe.dark_ml)
 
             bottle_plan.append(
                 BottlePlan(
@@ -77,6 +85,7 @@ def create_bottle_plan() -> list[BottlePlan]:
     return bottle_plan
 
 
+
 def get_potion_recipes() -> list[PotionRecipe]:
     recipes: list[PotionRecipe] = []
 
@@ -84,7 +93,7 @@ def get_potion_recipes() -> list[PotionRecipe]:
         result = connection.execute(
             sqlalchemy.text(
                 """SELECT
-                    sku, potion_name, price, red_ml, green_ml, blue_ml, dark_ml
+                    potion_id, sku, potion_name, price, red_ml, green_ml, blue_ml, dark_ml
                    FROM
                     potion_recipes"""
             )
@@ -92,10 +101,11 @@ def get_potion_recipes() -> list[PotionRecipe]:
         for row in result:
             recipes.append(
                 PotionRecipe.from_tuple(
-                    sku=row[0],
-                    name=row[1],
-                    price=row[2],
-                    potion=(row[3], row[4], row[5], row[6]),
+                    potion_id=row[0],
+                    sku=row[1],
+                    name=row[2],
+                    price=row[3],
+                    potion=(row[4], row[5], row[6], row[7]),
                 )
             )
 

@@ -8,3 +8,4 @@ pyvenv.cfg
 /Lib/
 /Scripts/
 /Include/
+test_data
