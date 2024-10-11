@@ -41,7 +41,7 @@ def get_capacity_plan():
     capacity unit costs 1000 gold.
     """
 
-    return {"potion_capacity": 0, "ml_capacity": 0}
+    return {"potion_capacity": 0, "ml_capacity": 1}
 
 
 class CapacityPurchase(BaseModel):
@@ -56,5 +56,6 @@ def deliver_capacity_plan(capacity_purchase: CapacityPurchase, order_id: int):
     Start with 1 capacity for 50 potions and 1 capacity for 10000 ml of potion. Each additional
     capacity unit costs 1000 gold.
     """
+    ledger.liquid_capacity_ledger_entry(quantity=capacity_purchase.ml_capacity)
 
     return "OK"

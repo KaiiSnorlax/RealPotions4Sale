@@ -150,7 +150,7 @@ def liquid_capacity_ledger_entry(quantity: int):
         """INSERT INTO
             capacity_ledger (transaction_id, type, change)
            SELECT
-            max(transaction_id), 'liquid', (10000 * quantity)
+            max(transaction_id), 'liquid', (10000 * :quantity)
            FROM transactions"""
     ).bindparams(quantity=quantity)
 
