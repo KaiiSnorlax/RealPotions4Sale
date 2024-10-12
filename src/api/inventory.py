@@ -41,7 +41,7 @@ def get_capacity_plan():
     capacity unit costs 1000 gold.
     """
 
-    return {"potion_capacity": 0, "ml_capacity": 1}
+    return {"potion_capacity": 0, "ml_capacity": 0}
 
 
 class CapacityPurchase(BaseModel):
