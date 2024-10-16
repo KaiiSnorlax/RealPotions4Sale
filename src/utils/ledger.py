@@ -2,7 +2,7 @@ import sqlalchemy
 from src import database as db
 from src.api.bottler import PotionDelivered
 from src.api.barrels import Barrel
-from src.utils import barrels_util
+from src.utils import barrels_util, potions_util
 
 
 colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
@@ -50,7 +50,7 @@ def potion_sold(cart_id: int) -> tuple[int, int]:
 
 def potion_delivered(potion: PotionDelivered):
 
-    description = f"Potion Delivered: {potion.potion_type.sku} (x{potion.quantity})"
+    description = f"Potion Delivered: {potions_util.get_sku_from_type(potion.potion_type)} (x{potion.quantity})"
 
     transaction_entry = sqlalchemy.text(
         """INSERT INTO
@@ -62,13 +62,15 @@ def potion_delivered(potion: PotionDelivered):
     with db.engine.begin() as connection:
         connection.execute(transaction_entry)
 
-    potion_ledger_entry(potion.potion_type.sku, potion.quantity)
+    potion_ledger_entry(
+        potions_util.get_sku_from_type(potion.potion_type), potion.quantity
+    )
 
+    i = 0
     for color in colors:
-        if getattr(potion.potion_type, color) != 0:
-            liquid_ledger_entry(
-                color, -(getattr(potion.potion_type, color) * potion.quantity)
-            )
+        if potion.potion_type[i] != 0:
+            liquid_ledger_entry(color, -(potion.potion_type[i] * potion.quantity))
+        i += 1
 
 
 def potion_ledger_entry(sku: str, change: int):

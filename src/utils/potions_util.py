@@ -1,8 +1,7 @@
 from pydantic import BaseModel
 import sqlalchemy
 from src import database as db
-from src.utils.barrels_util import LiquidInventory
-from src.api.catalog import Catalog
+from src.utils.barrels_util import LiquidType
 from src.utils import barrels_util, ledger
 
 
@@ -14,103 +13,121 @@ class PotionRecipe(BaseModel):
     name: str
     price: int
 
-    red_ml: int
-    green_ml: int
-    blue_ml: int
-    dark_ml: int
+    potion_type: LiquidType
 
     @staticmethod
     def from_tuple(sku: str, name: str, price: int, potion: tuple[int, int, int, int]):
         return PotionRecipe(
-            sku=sku,
-            name=name,
-            price=price,
-            red_ml=potion[0],
-            green_ml=potion[1],
-            blue_ml=potion[2],
-            dark_ml=potion[3],
+            sku=sku, name=name, price=price, potion_type=LiquidType.from_tuple(potion)
         )
 
 
+class PotionInventory(BaseModel):
+    recipe: PotionRecipe
+    stock: int
+
+
 class BottlePlan(BaseModel):
-    potion_type: list[int]
+    potion_type: tuple[int, int, int, int]
     quantity: int
 
 
-def create_bottle_plan() -> list[BottlePlan]:
-    recipes = get_potion_recipes()
-    bottle_plan: list[BottlePlan] = []
+def get_potion_plan() -> list[BottlePlan]:
+    potions = get_potion_inventory()
+    craftables: dict[tuple[int, int, int, int], int] = {}
 
     free_space = ledger.potion_capacity_sum() - ledger.all_potions_sum()
 
-    liquid_in_inventory = barrels_util.get_liquid_amount()
+    avaliable_liquid = barrels_util.get_liquid_amount()
 
-    for recipe in recipes:
-        if free_space == 0:
-            return bottle_plan
-        if (
-            liquid_in_inventory.red_ml >= recipe.red_ml
-            and liquid_in_inventory.green_ml >= recipe.green_ml
-            and liquid_in_inventory.blue_ml >= recipe.blue_ml
-            and liquid_in_inventory.dark_ml >= recipe.dark_ml
-        ):
-            max_craftable = get_max_recipe_craftable(recipe, liquid_in_inventory)
-            if max_craftable > free_space:
-                can_make = free_space
-                free_space = 0
+    print(avaliable_liquid)
+    while len(potions) > 0 and free_space > 0:
+        lowest_stock = min(potions, key=lambda potion: potion.stock)
 
-            else:
-                can_make = max_craftable
-                free_space -= can_make
-            
-            liquid_in_inventory.red_ml -= (can_make * recipe.red_ml)
-            liquid_in_inventory.green_ml -= (can_make * recipe.green_ml)
-            liquid_in_inventory.blue_ml -= (can_make * recipe.blue_ml)
-            liquid_in_inventory.dark_ml -= (can_make * recipe.dark_ml)
+        if not craftable(lowest_stock.recipe.potion_type, avaliable_liquid):
+            potions.pop(potions.index(lowest_stock))
 
-            bottle_plan.append(
-                BottlePlan(
-                    potion_type=[
-                        recipe.red_ml,
-                        recipe.green_ml,
-                        recipe.blue_ml,
-                        recipe.dark_ml,
-                    ],
-                    quantity=can_make,
-                )
+        else:
+            lowest_stock.stock += 1
+            free_space -= 1
+            avaliable_liquid = update_avaliable_liquid(
+                avaliable_liquid, lowest_stock.recipe.potion_type
             )
 
+            if lowest_stock.recipe.potion_type.to_tuple() in craftables:
+                craftables[lowest_stock.recipe.potion_type.to_tuple()] += 1
+
+            else:
+                craftables[lowest_stock.recipe.potion_type.to_tuple()] = 1
+
+    if len(craftables) > 0:
+        return add_potions_to_plan(craftables)
+    else:
+        return []
+
+
+def craftable(potion: LiquidType, liquid_in_inventory: LiquidType):
+    for i in range(4):
+        if liquid_in_inventory.to_tuple()[i] < potion.to_tuple()[i]:
+            return False
+
+    return True
+
+
+def add_potions_to_plan(craftables: dict[tuple[int, int, int, int], int]):
+    bottle_plan: list[BottlePlan] = []
+    for key in craftables:
+        bottle_plan.append(BottlePlan(potion_type=key, quantity=craftables[key]))
     return bottle_plan
 
 
+def update_avaliable_liquid(
+    avaliable_liquid: LiquidType, potion: LiquidType
+) -> LiquidType:
+    for color in colors:
+        if getattr(potion, color) != 0:
+            setattr(
+                avaliable_liquid,
+                color,
+                getattr(avaliable_liquid, color) - getattr(potion, color),
+            )
+    return avaliable_liquid
 
-def get_potion_recipes() -> list[PotionRecipe]:
-    recipes: list[PotionRecipe] = []
+
+def get_potion_inventory() -> list[PotionInventory]:
+    potion_inventory: list[PotionInventory] = []
 
     with db.engine.begin() as connection:
         result = connection.execute(
             sqlalchemy.text(
-                """SELECT
-                    sku, potion_name, price, red_ml, green_ml, blue_ml, dark_ml
+                """SELECT distinct
+                    potion_recipes.sku, potion_recipes.potion_name, potion_recipes.price, potion_recipes.red_ml, potion_recipes.green_ml, potion_recipes.blue_ml, potion_recipes.dark_ml, coalesce(sum(change), 0) as stock 
                    FROM
-                    potion_recipes"""
+                    potion_recipes
+                   LEFT JOIN potion_ledger ON potion_ledger.sku = potion_recipes.sku
+                   where potion_recipes.craft = true
+                   GROUP BY potion_recipes.sku
+                   ORDER BY coalesce(sum(change), 0)"""
             )
         )
         for row in result:
-            recipes.append(
-                PotionRecipe.from_tuple(
-                    sku=row[0],
-                    name=row[1],
-                    price=row[2],
-                    potion=(row[3], row[4], row[5], row[6]),
-                )
+            potion_inventory.append(
+                PotionInventory(
+                    recipe=PotionRecipe.from_tuple(
+                        sku=row[0],
+                        name=row[1],
+                        price=row[2],
+                        potion=(row[3], row[4], row[5], row[6]),
+                    ),
+                    stock=row[7],
+                ),
             )
 
-    return recipes
+    return potion_inventory
 
 
 def get_max_recipe_craftable(
-    recipe: PotionRecipe, liquid_in_inventory: LiquidInventory
+    recipe: PotionRecipe, liquid_in_inventory: LiquidType
 ) -> int:
     craftable_per_color: list[int] = []
 
@@ -124,41 +141,15 @@ def get_max_recipe_craftable(
 
 
 def get_sku_from_type(potion_type: tuple[int, int, int, int]) -> str:
-    recipes: list[PotionRecipe] = get_potion_recipes()
+    potions: list[PotionInventory] = get_potion_inventory()
 
-    for recipe in recipes:
+    for potion in potions:
         if potion_type == (
-            recipe.red_ml,
-            recipe.green_ml,
-            recipe.blue_ml,
-            recipe.dark_ml,
+            potion.recipe.potion_type.red_ml,
+            potion.recipe.potion_type.green_ml,
+            potion.recipe.potion_type.blue_ml,
+            potion.recipe.potion_type.dark_ml,
         ):
-            return recipe.sku
+            return potion.recipe.sku
 
     raise RuntimeError(f"Potion type {potion_type} not found in table: potion_recipes")
-
-
-def get_current_catalog() -> list[Catalog]:
-    recipes: list[PotionRecipe] = get_potion_recipes()
-    catalog: list[Catalog] = []
-    spots: int = 6
-
-    for recipe in recipes:
-        if ledger.potion_ledger_sum(recipe.sku) > 0 and spots > 0:
-            catalog.append(
-                Catalog(
-                    sku=recipe.sku,
-                    name=recipe.name,
-                    quantity=ledger.potion_ledger_sum(recipe.sku),
-                    price=recipe.price,
-                    potion_type=(
-                        recipe.red_ml,
-                        recipe.green_ml,
-                        recipe.blue_ml,
-                        recipe.dark_ml,
-                    ),
-                )
-            )
-            spots -= 1
-
-    return catalog

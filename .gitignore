@@ -8,4 +8,5 @@ pyvenv.cfg
 /Lib/
 /Scripts/
 /Include/
-test_data
+test_data.txt
+schema.sql

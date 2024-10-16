@@ -30,33 +30,17 @@ class PotionRecipe(BaseModel):
 
 
 class PotionDelivered(BaseModel):
-    potion_type: PotionRecipe
-    quantity: int
-
-
-class PotionInventory(BaseModel):
     potion_type: tuple[int, int, int, int]
     quantity: int
 
 
-def fix_data(data: PotionInventory) -> PotionDelivered:
-    return PotionDelivered(
-        potion_type=PotionRecipe.from_tuple(
-            sku=potions_util.get_sku_from_type(data.potion_type),
-            potion=data.potion_type,
-        ),
-        quantity=data.quantity,
-    )
-
-
 @router.post("/deliver/{order_id}")
-def post_deliver_bottles(potions_delivered: list[PotionInventory], order_id: int):
+def post_deliver_bottles(potions_delivered: list[PotionDelivered], order_id: int):
 
     # Increment amount of green_potions based on quantity from BottlePlan
 
     for potion in potions_delivered:
-        potion = fix_data(potion)
-        print(f"Bottle Delivered: {potion.potion_type.sku} (x{potion.quantity})")
+        print(f"Bottle Delivered: {potion.potion_type} (x{potion.quantity})")
 
         ledger.potion_delivered(potion)
 
@@ -68,7 +52,7 @@ def get_bottle_plan():
 
     # Creates a BottlePlan depending on how many multiples of 100ml of green I have and how much space I have left (assuming I get 50)
 
-    plan = potions_util.create_bottle_plan()
+    plan = potions_util.get_potion_plan()
 
     print(f"Get Bottle Plan: {plan}")
     return plan
