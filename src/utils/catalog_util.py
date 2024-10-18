@@ -20,14 +20,14 @@ def get_catalog() -> list[Catalog]:
             sqlalchemy.text(
                 """
                 SELECT distinct
-                    potion_id, potion_recipes.sku, potion_recipes.potion_name, potion_recipes.price, potion_recipes.red_ml, potion_recipes.green_ml, potion_recipes.blue_ml, potion_recipes.dark_ml, coalesce(sum(change), 0) as stock 
+                    potion.id, potion.sku, potion.name, potion.price, potion.red_ml, potion.green_ml, potion.blue_ml, potion.dark_ml, coalesce(sum(change), 0) as stock 
                 FROM
-                    potion_recipes
-                LEFT JOIN potion_ledger ON potion_ledger.sku = potion_recipes.sku
+                    potion
+                LEFT JOIN potion_ledger ON potion_ledger.potion_id = potion.id
                 WHERE
-                    potion_recipes.catalog = true
+                    potion.catalog = true
                 GROUP BY
-                    potion_recipes.sku
+                    potion.id
                 HAVING
                     coalesce(sum(change), 0) != 0
                 ORDER BY
