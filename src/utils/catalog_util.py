@@ -38,11 +38,11 @@ def get_catalog() -> list[Catalog]:
         for row in result:
             potion_catalog.append(
                 Catalog(
-                    sku=row[0],
-                    name=row[1],
-                    price=row[2],
-                    potion_type=(row[3], row[4], row[5], row[6]),
-                    quantity=row[7],
+                    sku=row[1],
+                    name=row[2],
+                    price=row[3],
+                    potion_type=(row[4], row[5], row[6], row[7]),
+                    quantity=row[8],
                 )
             )
 
