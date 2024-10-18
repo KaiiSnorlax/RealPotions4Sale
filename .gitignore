@@ -9,4 +9,3 @@ pyvenv.cfg
 /Scripts/
 /Include/
 test_data.txt
-schema.sql
