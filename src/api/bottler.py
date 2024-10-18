@@ -34,23 +34,30 @@ class PotionDelivered(BaseModel):
     quantity: int
 
 
+def bottles_to_json(potions_delivered: list[PotionDelivered]) -> str:
+    # Turn potions_delivered into json format to use PostgreSQL json_populate_recordset **TO-DO: FIND LESS UGLY WAY OF DOING THIS**
+    return (
+        "["
+        + ",".join(
+            [
+                f'{{"potion_id": {potions_util.get_potion_from_type(potion.potion_type).recipe.potion_id}, "sku": "{potions_util.get_potion_from_type(potion.potion_type).recipe.sku}", "quantity": {potion.quantity}, "red_ml_cost": {potion.potion_type[0]}, "green_ml_cost": {potion.potion_type[1]}, "blue_ml_cost": {potion.potion_type[2]}, "dark_ml_cost": {potion.potion_type[3]}}}'
+                for potion in potions_delivered
+            ]
+        )
+        + "]"
+    )
+
+
 @router.post("/deliver/{order_id}")
 def post_deliver_bottles(potions_delivered: list[PotionDelivered], order_id: int):
 
-    # Increment amount of green_potions based on quantity from BottlePlan
-
-    for potion in potions_delivered:
-        print(f"Bottle Delivered: {potion.potion_type} (x{potion.quantity})")
-
-        ledger.potion_delivered(potion)
+    ledger.potion_delivered(bottles_to_json(potions_delivered))
 
     return "OK"
 
 
 @router.post("/plan")
 def get_bottle_plan():
-
-    # Creates a BottlePlan depending on how many multiples of 100ml of green I have and how much space I have left (assuming I get 50)
 
     plan = potions_util.get_potion_plan()
 

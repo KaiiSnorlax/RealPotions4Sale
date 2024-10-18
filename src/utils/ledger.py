@@ -1,76 +1,123 @@
 import sqlalchemy
 from src import database as db
-from src.api.bottler import PotionDelivered
-from src.api.barrels import Barrel
-from src.utils import barrels_util, potions_util
 
 
-colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
+def potion_sold(cart_id: int):
+    # This transaction stores details of the cart owner / cart items and temporaily (for transaction) stores this information inside of line_item_details
+    # For each potion sold (row in line_item_details) a transaction description is created and associated transaction_id is saved into temporary variable line_item_transaction_id
+    # Using line_item_transaction_id potion ledger records the decrease in stock, while gold ledger records the increase in gold
+    # Also using line_item_transaction_id, a row is inserted into checkout, which is a join table between cart_item and transaction (for ease of data analysis)
 
+    cart_checkout = sqlalchemy.text(
+        """
+        DO $$
+        DECLARE
+            line_item_details RECORD;
+            line_item_transaction_id INTEGER;
+        BEGIN
+        FOR line_item_details IN
+            SELECT
+            customer.name, customer.level, customer.class, 
+            potion.name as potion_name, potion.price,
+            cart_item.quantity, cart_item.potion_id, cart_item.id as cart_id
+            FROM
+            visit
+            JOIN cart ON visit.id = cart.visit_id
+            JOIN customer ON customer.id = visit.customer_id
+            JOIN cart_item ON cart.id = cart_item.cart_id
+            JOIN potion ON cart_item.potion_id = potion.id
+            WHERE cart.id = :cart_id
+        LOOP
+            INSERT INTO transaction (description)
+            VALUES (
+            CONCAT(
+                'Potion Sold: ', line_item_details.name, 
+                ' (level ', line_item_details.level, ', class ', line_item_details.class, 
+                ') purchased ', line_item_details.potion_name, 
+                ' (x', line_item_details.quantity, 
+                ') for ', line_item_details.price, ' gold each.')
+            )
+            RETURNING id INTO line_item_transaction_id;
 
-def potion_sold(cart_id: int) -> tuple[int, int]:
-    total_potions_sold: int = 0
-    total_transaction_cost: int = 0
+            INSERT INTO potion_ledger (transaction_id, potion_id, change)
+            VALUES (line_item_transaction_id, line_item_details.potion_id, -line_item_details.quantity);
 
-    get_transaction_info = sqlalchemy.text(
-        """SELECT
-            customers.name, customers.class, customers.level, cart_items.sku, cart_items.quantity, potion_recipes.price, potion_recipes.potion_name
-           FROM
-            customer_visits
-            JOIN carts ON customer_visits.visit_id = carts.visit_id
-            JOIN customers ON customers.customer_id = customer_visits.customer_id
-            JOIN cart_items ON carts.cart_id = cart_items.cart_id
-            JOIN potion_recipes ON cart_items.sku = potion_recipes.sku 
-           WHERE carts.cart_id = :cart_id"""
+            INSERT INTO gold_ledger (transaction_id, change)
+            VALUES (line_item_transaction_id, (line_item_details.quantity * line_item_details.price));
+
+            INSERT INTO checkout (transaction_id, cart_item_id)
+            VALUES (line_item_transaction_id, line_item_details.cart_id);
+        END LOOP;
+        END $$;
+        """
     ).bindparams(cart_id=cart_id)
 
     with db.engine.begin() as connection:
-        transaction = connection.execute(get_transaction_info).mappings().all()
-
-    for entry in range(len(transaction)):
-        description = f"Potion Sold: {transaction[entry]['name']} (level: {transaction[entry]['level']}, class: {transaction[entry]['class']}) purchased {transaction[entry]['potion_name']} (x{transaction[entry]['quantity']}) for {transaction[entry]['price']} gold each."
-        transaction_entry = sqlalchemy.text(
-            """INSERT INTO
-                transactions (description)
-               VALUES (:description)"""
-        ).bindparams(description=description)
-
-        with db.engine.begin() as connection:
-            connection.execute(transaction_entry)
-
-        gold_total = transaction[entry]["quantity"] * transaction[entry]["price"]
-        total_transaction_cost += gold_total
-        total_potions_sold += transaction[entry]["quantity"]
-
-        gold_ledger_entry(gold_total)
-        potion_ledger_entry(transaction[entry]["sku"], -transaction[entry]["quantity"])
-
-    return total_potions_sold, total_transaction_cost
+        connection.execute(cart_checkout)
 
 
-def potion_delivered(potion: PotionDelivered):
+def potion_delivered(json_string: str):
+    # This transaction takes in a json array and converts it into a set of records, each representing a delivered potion. (Do this since details of our order are not in database)
+    # For each potion delivered (row in order_details) a transaction description is created and associated transaction_id is saved into temporary variable potion_transaction_id
+    # Using potion_transaction_id potion ledger records the increase in stock
+    # Also using potion_transaction_id liquid ledger records the decrease in stock (IF statements there to avoid useless entries where there is 0 change)
 
-    description = f"Potion Delivered: {potions_util.get_sku_from_type(potion.potion_type)} (x{potion.quantity})"
+    potions_delivered = sqlalchemy.text(
+        """
+        DO $potions_delivered$
+        DECLARE
+            order_details RECORD;
+            potion_transaction_id INTEGER;
+        BEGIN
+        FOR order_details IN
+        select * from json_populate_recordset(null::record,:json_string)
+        AS
+        (
+        sku text,
+        potion_id integer,
+        quantity integer,
+        red_ml_cost integer,
+        green_ml_cost integer,
+        blue_ml_cost integer,
+        dark_ml_cost integer
+        )
+        LOOP
+            INSERT INTO transaction (description)
+            VALUES (
+            CONCAT(
+            'Potion Delivered: ', order_details.sku, ' (x', order_details.quantity, ')')
+            )
+            RETURNING id INTO potion_transaction_id;
 
-    transaction_entry = sqlalchemy.text(
-        """INSERT INTO
-            transactions (description)
-           VALUES
-            (:description)"""
-    ).bindparams(description=description)
+            INSERT INTO potion_ledger (transaction_id, potion_id, change)
+            VALUES (potion_transaction_id, order_details.potion_id, order_details.quantity);
+
+            IF order_details.red_ml_cost * order_details.quantity <> 0 THEN
+                INSERT INTO liquid_ledger (transaction_id, color, change)
+                VALUES (potion_transaction_id, 'red_ml', -(order_details.red_ml_cost * order_details.quantity));
+            END IF;
+
+            IF order_details.green_ml_cost * order_details.quantity <> 0 THEN
+                INSERT INTO liquid_ledger (transaction_id, color, change)
+                VALUES (potion_transaction_id, 'green_ml', -(order_details.green_ml_cost * order_details.quantity));
+            END IF;
+
+            IF order_details.blue_ml_cost * order_details.quantity <> 0 THEN
+                INSERT INTO liquid_ledger (transaction_id, color, change)
+                VALUES (potion_transaction_id, 'blue_ml', -(order_details.blue_ml_cost * order_details.quantity));
+            END IF;
+
+            IF order_details.dark_ml_cost * order_details.quantity <> 0 THEN
+                INSERT INTO liquid_ledger (transaction_id, color, change)
+                VALUES (potion_transaction_id, 'dark_ml', -(order_details.dark_ml_cost * order_details.quantity));
+            END IF;
+        END LOOP;
+        END $potions_delivered$;
+        """
+    ).bindparams(json_string=json_string)
 
     with db.engine.begin() as connection:
-        connection.execute(transaction_entry)
-
-    potion_ledger_entry(
-        potions_util.get_sku_from_type(potion.potion_type), potion.quantity
-    )
-
-    i = 0
-    for color in colors:
-        if potion.potion_type[i] != 0:
-            liquid_ledger_entry(color, -(potion.potion_type[i] * potion.quantity))
-        i += 1
+        connection.execute(potions_delivered)
 
 
 def potion_ledger_entry(sku: str, change: int):
@@ -80,59 +127,58 @@ def potion_ledger_entry(sku: str, change: int):
            SELECT
             max(transaction_id), :sku, :change
            FROM
-            transactions"""
+            transaction"""
     ).bindparams(sku=sku, change=change)
 
     with db.engine.begin() as connection:
         connection.execute(ledger_potion_entry)
 
 
-def barrel_bought(barrel: Barrel):
-    color = barrels_util.get_barrel_type(barrel)
-    description = f"Barrel Purchased: Purchased {color} (x{barrel.quantity}); containing {barrel.ml_per_barrel}; costing {barrel.price} gold each."
+def barrel_bought(json_string: str):
+    # This transaction takes in a json array and converts it into a set of records, each representing a delivered barrel. (Do this since details of our order are not in database)
+    # For each barrel delivered (row in order_details) a transaction description is created and associated transaction_id is saved into temporary variable potion_transaction_id
+    # Using barrel_transaction_id liquid ledger records the increase in stock, while gold ledger records the decrease in gold
 
-    transaction_entry = sqlalchemy.text(
-        """INSERT INTO
-            transactions (description)
-           VALUES (:description)"""
-    ).bindparams(description=description)
+    barrels_bought = sqlalchemy.text(
+        """
+        DO $barrels_delivered$
+        DECLARE
+            order_details RECORD;
+            barrel_transaction_id INTEGER;
+        BEGIN
+        FOR order_details IN
+        select * from json_populate_recordset(null::record,:json_string)
+        AS
+        (
+        color text,
+        quantity integer,
+        ml_per_barrel integer,
+        price integer
+        )
+        LOOP
+            INSERT INTO transaction (description)
+            VALUES (
+            CONCAT(
+            'Barrel Purchased: ', order_details.color, ' (x ', order_details.quantity, '); containing ', order_details.ml_per_barrel, 'ml; costing ', order_details.price, ' gold each.')
+            )
+            RETURNING id INTO barrel_transaction_id;
 
-    with db.engine.begin() as connection:
-        connection.execute(transaction_entry)
+            INSERT INTO liquid_ledger (transaction_id, change, color)
+            VALUES (barrel_transaction_id, order_details.ml_per_barrel, order_details.color);
 
-    liquid_ledger_entry(color, (barrel.ml_per_barrel * barrel.quantity))
-    gold_ledger_entry(-(barrel.price * barrel.quantity))
+            INSERT INTO gold_ledger (transaction_id, change)
+            VALUES (barrel_transaction_id, -(order_details.quantity * order_details.price));
 
-
-def gold_ledger_entry(change: int):
-
-    ledger_gold_entry = sqlalchemy.text(
-        """INSERT INTO
-            gold_ledger (transaction_id, change)
-           SELECT
-            max(transaction_id), :change
-           FROM
-            transactions"""
-    ).bindparams(change=change)
-
-    with db.engine.begin() as connection:
-        connection.execute(ledger_gold_entry)
-
-
-def liquid_ledger_entry(color: str, change: int):
-    ledger_potion_entry = sqlalchemy.text(
-        """INSERT INTO
-            liquid_ledger (transaction_id, color, change)
-           SELECT
-            max(transaction_id), :color, :change
-           FROM
-            transactions"""
-    ).bindparams(color=color, change=change)
+        END LOOP;
+        END $barrels_delivered$;
+        """
+    ).bindparams(json_string=json_string)
 
     with db.engine.begin() as connection:
-        connection.execute(ledger_potion_entry)
+        connection.execute(barrels_bought)
 
 
+# TO-DO: Properly implement capacity purchases
 def potion_capacity_ledger_entry(quantity: int):
     ledger_potion_entry = sqlalchemy.text(
         """INSERT INTO
@@ -140,7 +186,7 @@ def potion_capacity_ledger_entry(quantity: int):
            SELECT
             max(transaction_id), 'potion', (50 * :quantity)
            FROM
-            transactions"""
+            transaction"""
     ).bindparams(quantity=quantity)
 
     with db.engine.begin() as connection:
@@ -153,7 +199,7 @@ def liquid_capacity_ledger_entry(quantity: int):
             capacity_ledger (transaction_id, type, change)
            SELECT
             max(transaction_id), 'liquid', (10000 * :quantity)
-           FROM transactions"""
+           FROM transaction"""
     ).bindparams(quantity=quantity)
 
     with db.engine.begin() as connection:

@@ -9,17 +9,12 @@ colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
 
 
 class PotionRecipe(BaseModel):
+    potion_id: int
     sku: str
     name: str
     price: int
 
     potion_type: LiquidType
-
-    @staticmethod
-    def from_tuple(sku: str, name: str, price: int, potion: tuple[int, int, int, int]):
-        return PotionRecipe(
-            sku=sku, name=name, price=price, potion_type=LiquidType.from_tuple(potion)
-        )
 
 
 class PotionInventory(BaseModel):
@@ -101,26 +96,68 @@ def get_potion_inventory() -> list[PotionInventory]:
         result = connection.execute(
             sqlalchemy.text(
                 """SELECT distinct
-                    potion_recipes.sku, potion_recipes.potion_name, potion_recipes.price, potion_recipes.red_ml, potion_recipes.green_ml, potion_recipes.blue_ml, potion_recipes.dark_ml, coalesce(sum(change), 0) as stock 
+                    potion.id, potion.sku, potion.name, potion.price, potion.red_ml, potion.green_ml, potion.blue_ml, potion.dark_ml, coalesce(sum(change), 0) as stock 
                    FROM
-                    potion_recipes
-                   LEFT JOIN potion_ledger ON potion_ledger.sku = potion_recipes.sku
-                   where potion_recipes.craft = true
-                   GROUP BY potion_recipes.sku
+                    potion
+                   LEFT JOIN potion_ledger ON potion_ledger.potion_id = potion.id
+                   where potion.craft = true
+                   GROUP BY potion.id
                    ORDER BY coalesce(sum(change), 0)"""
             )
         )
+
         for row in result:
+
             potion_inventory.append(
                 PotionInventory(
-                    recipe=PotionRecipe.from_tuple(
-                        sku=row[0],
-                        name=row[1],
-                        price=row[2],
-                        potion=(row[3], row[4], row[5], row[6]),
+                    recipe=PotionRecipe(
+                        potion_id=row[0],
+                        sku=row[1],
+                        name=row[2],
+                        price=row[3],
+                        potion_type=LiquidType.from_tuple(
+                            (row[4], row[5], row[6], row[7])
+                        ),
                     ),
-                    stock=row[7],
-                ),
+                    stock=row[8],
+                )
+            )
+
+    return potion_inventory
+
+
+def get_potion_catalog() -> list[PotionInventory]:
+    potion_inventory: list[PotionInventory] = []
+
+    with db.engine.begin() as connection:
+        result = connection.execute(
+            sqlalchemy.text(
+                """SELECT distinct
+                    potion.id, potion.sku, potion.name, potion.price, potion.red_ml, potion.green_ml, potion.blue_ml, potion.dark_ml, coalesce(sum(change), 0) as stock 
+                   FROM
+                    potion
+                   LEFT JOIN potion_ledger ON potion_ledger.potion_id = potion.id
+                   where potion.catalog = true
+                   GROUP BY potion.id
+                   ORDER BY coalesce(sum(change), 0)"""
+            )
+        )
+
+        for row in result:
+
+            potion_inventory.append(
+                PotionInventory(
+                    recipe=PotionRecipe(
+                        potion_id=row[0],
+                        sku=row[1],
+                        name=row[2],
+                        price=row[3],
+                        potion_type=LiquidType.from_tuple(
+                            (row[4], row[5], row[6], row[7])
+                        ),
+                    ),
+                    stock=row[8],
+                )
             )
 
     return potion_inventory
@@ -140,7 +177,7 @@ def get_max_recipe_craftable(
     return min(craftable_per_color)
 
 
-def get_sku_from_type(potion_type: tuple[int, int, int, int]) -> str:
+def get_potion_from_type(potion_type: tuple[int, int, int, int]) -> PotionInventory:
     potions: list[PotionInventory] = get_potion_inventory()
 
     for potion in potions:
@@ -150,6 +187,16 @@ def get_sku_from_type(potion_type: tuple[int, int, int, int]) -> str:
             potion.recipe.potion_type.blue_ml,
             potion.recipe.potion_type.dark_ml,
         ):
-            return potion.recipe.sku
+            return potion
 
-    raise RuntimeError(f"Potion type {potion_type} not found in table: potion_recipes")
+    raise RuntimeError(f"Potion type {potion_type} not found in table: potion")
+
+
+def get_id_from_sku(potion_sku: str) -> int:
+    potions: list[PotionInventory] = get_potion_catalog()
+
+    for potion in potions:
+        if potion_sku == potion.recipe.sku:
+            return potion.recipe.potion_id
+
+    raise RuntimeError(f"Potion type {potion_sku} not found in table: potion")

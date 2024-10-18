@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 from src.api import auth
-from src.utils import barrels_util
+from src.utils import barrels_util, ledger
 
 router = APIRouter(
     prefix="/barrels",
@@ -10,29 +9,24 @@ router = APIRouter(
 )
 
 
-class Barrel(BaseModel):
-    sku: str
-
-    ml_per_barrel: int
-    potion_type: list[int]
-    price: int
-
-    quantity: int
+def barrels_to_json(barrels_delivered: list[barrels_util.Barrel]) -> str:
+    # Turn barrels_delivered into json format to use PostgreSQL json_populate_recordset **TO-DO: FIND LESS UGLY WAY OF DOING THIS**
+    return (
+        "["
+        + ",".join(
+            [
+                f'{{"color": "{barrels_util.get_barrel_type(barrel)}", "quantity": {barrel.quantity}, "ml_per_barrel": {barrel.ml_per_barrel}, "price": {barrel.price}}}'
+                for barrel in barrels_delivered
+            ]
+        )
+        + "]"
+    )
 
 
 @router.post("/deliver/{order_id}")
-def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
+def post_deliver_barrels(barrels_delivered: list[barrels_util.Barrel], order_id: int):
 
-    for barrel in barrels_delivered:
-        barrels_util.barrel_delivered(
-            Barrel(
-                sku=barrel.sku,
-                ml_per_barrel=barrel.ml_per_barrel,
-                potion_type=barrel.potion_type,
-                price=barrel.price,
-                quantity=barrel.quantity,
-            )
-        )
+    ledger.barrel_bought(barrels_to_json(barrels_delivered))
 
     print(f"Barrels Delievered: {barrels_delivered} order_id: {order_id}")
 
@@ -41,7 +35,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel], order_id: int):
 
 # Gets called once a day
 @router.post("/plan")
-def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
+def get_wholesale_purchase_plan(wholesale_catalog: list[barrels_util.Barrel]):
 
     barrels_to_buy = barrels_util.create_barrel_plan(wholesale_catalog)
 

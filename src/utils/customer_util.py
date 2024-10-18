@@ -7,9 +7,10 @@ def add_new_customer(
     customer_name: str, customer_class: str, customer_level: int
 ) -> None:
 
+    # Adds a new customer if the combination of name, class and level are unique
     customer_entry = sqlalchemy.text(
         """INSERT INTO
-            customers (name, class, level)
+            customer (name, class, level)
            VALUES
             (:customer_name, :customer_class, :customer_level)
            ON CONFLICT DO NOTHING"""
@@ -19,16 +20,17 @@ def add_new_customer(
         customer_level=customer_level,
     )
 
+    # Adds a new visit for each customer
     visit_entry = sqlalchemy.text(
         """INSERT INTO
-            customer_visits (customer_id, hour, day)
+            visit (customer_id, hour, day)
            SELECT
-            customer_id, :hour, :day
+            customer.id, :hour, :day
            FROM
-            customers
-           WHERE customers.name = :customer_name
-           AND customers.class = :customer_class
-           AND customers.level = :customer_level"""
+            customer
+           WHERE customer.name = :customer_name
+           AND customer.class = :customer_class
+           AND customer.level = :customer_level"""
     ).bindparams(
         customer_name=customer_name,
         customer_class=customer_class,

@@ -1,8 +1,17 @@
 from src.utils import ledger
 from pydantic import BaseModel
-from src.api.barrels import Barrel
 
 colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
+
+
+class Barrel(BaseModel):
+    sku: str
+
+    ml_per_barrel: int
+    potion_type: list[int]
+    price: int
+
+    quantity: int
 
 
 class LiquidType(BaseModel):
@@ -138,8 +147,3 @@ def get_largest_barrel(
         avaliable_gold,
         avaliable_space,
     )
-
-
-def barrel_delivered(barrel: Barrel) -> None:
-
-    ledger.barrel_bought(barrel)

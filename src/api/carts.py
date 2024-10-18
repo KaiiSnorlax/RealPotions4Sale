@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
 from enum import Enum
-from src.utils import customer_util, cart_util, ledger
+from src.utils import customer_util, cart_util, ledger, potions_util
 
 router = APIRouter(
     prefix="/carts",
@@ -126,7 +126,9 @@ class CartItem(BaseModel):
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
 
-    cart_util.add_item_to_cart(cart_id, item_sku, cart_item.quantity)
+    cart_util.add_item_to_cart(
+        cart_id, potions_util.get_id_from_sku(item_sku), cart_item.quantity
+    )
 
     print(
         f"Item Added to Cart: added {item_sku} (x{cart_item.quantity}) to cart {cart_id}"
@@ -143,13 +145,13 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
     # Decrements potion stock and increments gold depending on customers order.
 
-    transaction_total = ledger.potion_sold(cart_id)
+    ledger.potion_sold(cart_id)
 
-    print(
-        f"Cart Checkout: cart {cart_id} purchased {transaction_total[0]} potions totalling {transaction_total[1]} gold"
-    )
+    # print(
+    #     f"Cart Checkout: cart {cart_id} purchased {transaction_total[0]} potions totalling {transaction_total[1]} gold"
+    # )
 
-    return {
-        "total_potions_bought": transaction_total[0],
-        "total_gold_paid": transaction_total[1],
-    }
+    # return {
+    #     "total_potions_bought": transaction_total[0],
+    #     "total_gold_paid": transaction_total[1],
+    # }
