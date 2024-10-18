@@ -1,7 +1,7 @@
 from src.utils import ledger
 from pydantic import BaseModel
 
-colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
+colors = ["green_ml", "blue_ml", "dark_ml"]
 
 
 class Barrel(BaseModel):
@@ -72,8 +72,7 @@ def get_barrel_type(barrel: Barrel) -> str:
         return "dark_ml"
 
 
-# Creates a barrel plan depending of colors with stocks of 0.
-# ** Will need to change in future when potions are not only 100ml of one color **
+# Creates a barrel plan depending of colors with stocks below 100ml.
 def create_barrel_plan(wholesale_catalog: list[Barrel]) -> list[BarrelOrder]:
     liquid_in_inventory: LiquidType = get_liquid_amount()
     avaliable_space: int = get_avaliable_liquid_space(liquid_in_inventory)
