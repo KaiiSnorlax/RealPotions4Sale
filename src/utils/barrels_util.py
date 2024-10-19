@@ -1,7 +1,7 @@
 from src.utils import ledger
 from pydantic import BaseModel
 
-colors = ["green_ml", "blue_ml", "dark_ml"]
+colors = ["red_ml", "green_ml", "blue_ml", "dark_ml"]
 
 
 class Barrel(BaseModel):
