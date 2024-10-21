@@ -2,7 +2,7 @@ import sqlalchemy
 from src import database as db
 
 
-def potion_sold(cart_id: int):
+def potion_sold(cart_id: int) -> tuple[int, int]:
     # This transaction stores details of the cart owner / cart items and temporaily (for transaction) stores this information inside of line_item_details
     # For each potion sold (row in line_item_details) a transaction description is created and associated transaction_id is saved into temporary variable line_item_transaction_id
     # Using line_item_transaction_id potion ledger records the decrease in stock, while gold ledger records the increase in gold
@@ -17,15 +17,15 @@ def potion_sold(cart_id: int):
         BEGIN
         FOR line_item_details IN
             SELECT
-            customer.name, customer.level, customer.class, 
-            potion.name as potion_name, potion.price,
-            cart_item.quantity, cart_item.potion_id, cart_item.id as cart_id
+                customer.name, customer.level, customer.class, 
+                potion.name as potion_name, potion.price,
+                cart_item.quantity, cart_item.potion_id, cart_item.id as cart_id
             FROM
-            visit
-            JOIN cart ON visit.id = cart.visit_id
-            JOIN customer ON customer.id = visit.customer_id
-            JOIN cart_item ON cart.id = cart_item.cart_id
-            JOIN potion ON cart_item.potion_id = potion.id
+                visit
+                JOIN cart ON visit.id = cart.visit_id
+                JOIN customer ON customer.id = visit.customer_id
+                JOIN cart_item ON cart.id = cart_item.cart_id
+                JOIN potion ON cart_item.potion_id = potion.id
             WHERE cart.id = :cart_id
         LOOP
             INSERT INTO transaction (description)
@@ -49,11 +49,23 @@ def potion_sold(cart_id: int):
             VALUES (line_item_transaction_id, line_item_details.cart_id);
         END LOOP;
         END $$;
+
+        SELECT 
+            SUM(cart_item.quantity) as total_bought, SUM(cart_item.quantity * potion.price) as total_price
+        FROM
+            cart_item
+            JOIN potion ON potion.id = cart_item.potion_id
+        WHERE cart_item.cart_id = :cart_id;
         """
     ).bindparams(cart_id=cart_id)
 
     with db.engine.begin() as connection:
-        connection.execute(cart_checkout)
+        result = connection.execute(cart_checkout).mappings().first()
+
+    if result is None:
+        raise RuntimeError(f"error with cart {cart_id}")
+
+    return (result["total_bought"], result["total_price"])
 
 
 def potion_delivered(json_string: str):

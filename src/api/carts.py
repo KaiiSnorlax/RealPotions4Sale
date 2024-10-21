@@ -145,13 +145,13 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
 
     # Decrements potion stock and increments gold depending on customers order.
 
-    ledger.potion_sold(cart_id)
+    transaction_total: tuple[int, int] = ledger.potion_sold(cart_id)
 
-    # print(
-    #     f"Cart Checkout: cart {cart_id} purchased {transaction_total[0]} potions totalling {transaction_total[1]} gold"
-    # )
+    print(
+        f"Cart Checkout: cart {cart_id} purchased {transaction_total[0]} potions totalling {transaction_total[1]} gold"
+    )
 
-    # return {
-    #     "total_potions_bought": transaction_total[0],
-    #     "total_gold_paid": transaction_total[1],
-    # }
+    return {
+        "total_potions_bought": transaction_total[0],
+        "total_gold_paid": transaction_total[1],
+    }

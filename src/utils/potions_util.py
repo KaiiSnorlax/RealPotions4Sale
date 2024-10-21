@@ -28,7 +28,7 @@ class BottlePlan(BaseModel):
 
 
 def get_potion_plan() -> list[BottlePlan]:
-    potions = get_potion_inventory()
+    potions = get_craftable_potions()
     craftables: dict[tuple[int, int, int, int], int] = {}
 
     free_space = ledger.potion_capacity_sum() - ledger.all_potions_sum()
@@ -89,7 +89,7 @@ def update_avaliable_liquid(
     return avaliable_liquid
 
 
-def get_potion_inventory() -> list[PotionInventory]:
+def get_craftable_potions() -> list[PotionInventory]:
     potion_inventory: list[PotionInventory] = []
 
     with db.engine.begin() as connection:
@@ -126,7 +126,7 @@ def get_potion_inventory() -> list[PotionInventory]:
     return potion_inventory
 
 
-def get_potion_catalog() -> list[PotionInventory]:
+def get_potion_recipes() -> list[PotionInventory]:
     potion_inventory: list[PotionInventory] = []
 
     with db.engine.begin() as connection:
@@ -137,7 +137,6 @@ def get_potion_catalog() -> list[PotionInventory]:
                    FROM
                     potion
                    LEFT JOIN potion_ledger ON potion_ledger.potion_id = potion.id
-                   where potion.catalog = true
                    GROUP BY potion.id
                    ORDER BY coalesce(sum(change), 0)"""
             )
@@ -178,7 +177,7 @@ def get_max_recipe_craftable(
 
 
 def get_potion_from_type(potion_type: tuple[int, int, int, int]) -> PotionInventory:
-    potions: list[PotionInventory] = get_potion_inventory()
+    potions: list[PotionInventory] = get_craftable_potions()
 
     for potion in potions:
         if potion_type == (
@@ -193,7 +192,7 @@ def get_potion_from_type(potion_type: tuple[int, int, int, int]) -> PotionInvent
 
 
 def get_id_from_sku(potion_sku: str) -> int:
-    potions: list[PotionInventory] = get_potion_catalog()
+    potions: list[PotionInventory] = get_potion_recipes()
 
     for potion in potions:
         if potion_sku == potion.recipe.sku:
