@@ -91,15 +91,26 @@ class Customer(BaseModel):
     level: int
 
 
+def customers_to_json(customers: list[Customer]) -> str:
+    # Turn barrels_delivered into json format to use PostgreSQL json_populate_recordset **TO-DO: FIND LESS UGLY WAY OF DOING THIS**
+    return (
+        "["
+        + ",".join(
+            [
+                f'{{"customer_name": "{customer.customer_name}", "character_class": "{customer.character_class}", "customer_level": {customer.level}}}'
+                for customer in customers
+            ]
+        )
+        + "]"
+    )
+
+
 @router.post("/visits/{visit_id}")
 def post_visits(visit_id: int, customers: list[Customer]):
 
     # Which customers visited the shop today?
 
-    for customer in customers:
-        customer_util.add_new_customer(
-            customer.customer_name, customer.character_class, customer.level
-        )
+    customer_util.add_new_customer(customers_to_json(customers), visit_id)
 
     print(f"Customers Visited: {customers}")
     return "OK"

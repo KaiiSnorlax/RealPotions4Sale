@@ -35,9 +35,10 @@ create table
     hour integer not null,
     day text not null,
     real_timestamp timestamp with time zone not null default now(),
+    external_visit_id bigint not null,
     constraint visit_pkey primary key (id),
     constraint visit_customer_id_fkey foreign key (customer_id) references customer (id),
-    constraint customer_unique_visit unique (customer_id, real_timestamp)
+    constraint customer_unique_visit unique (customer_id, external_visit_id)
   ) tablespace pg_default;
 
 create table
