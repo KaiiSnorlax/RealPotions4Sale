@@ -111,7 +111,7 @@ def get_craftable_potions() -> list[PotionInventory]:
             potion_inventory.append(
                 PotionInventory(
                     recipe=PotionRecipe(
-                        potion_id=row.potion.id,
+                        potion_id=row.id,
                         sku=row.sku,
                         name=row.name,
                         price=row.price,
