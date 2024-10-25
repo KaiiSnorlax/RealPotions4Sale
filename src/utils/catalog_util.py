@@ -20,7 +20,7 @@ def get_catalog() -> list[Catalog]:
             sqlalchemy.text(
                 """
                 SELECT distinct
-                    potion.id, potion.sku, potion.name, potion.price, potion.red_ml, potion.green_ml, potion.blue_ml, potion.dark_ml, coalesce(sum(change), 0) as stock 
+                    potion.sku, potion.name, potion.price, potion.red_ml, potion.green_ml, potion.blue_ml, potion.dark_ml, coalesce(sum(change), 0) as stock 
                 FROM
                     potion
                 LEFT JOIN potion_ledger ON potion_ledger.potion_id = potion.id
@@ -38,11 +38,11 @@ def get_catalog() -> list[Catalog]:
         for row in result:
             potion_catalog.append(
                 Catalog(
-                    sku=row[1],
-                    name=row[2],
-                    price=row[3],
-                    potion_type=(row[4], row[5], row[6], row[7]),
-                    quantity=row[8],
+                    sku=row.sku,
+                    name=row.name,
+                    price=row.price,
+                    potion_type=(row.red_ml, row.green_ml, row.blue_ml, row.dark_ml),
+                    quantity=row.stock,
                 )
             )
 

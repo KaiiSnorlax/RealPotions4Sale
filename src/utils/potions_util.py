@@ -111,15 +111,15 @@ def get_craftable_potions() -> list[PotionInventory]:
             potion_inventory.append(
                 PotionInventory(
                     recipe=PotionRecipe(
-                        potion_id=row[0],
-                        sku=row[1],
-                        name=row[2],
-                        price=row[3],
+                        potion_id=row.potion.id,
+                        sku=row.sku,
+                        name=row.name,
+                        price=row.price,
                         potion_type=LiquidType.from_tuple(
-                            (row[4], row[5], row[6], row[7])
+                            (row.red_ml, row.green_ml, row.blue_ml, row.dark_ml)
                         ),
                     ),
-                    stock=row[8],
+                    stock=row.stock,
                 )
             )
 
@@ -147,15 +147,15 @@ def get_potion_recipes() -> list[PotionInventory]:
             potion_inventory.append(
                 PotionInventory(
                     recipe=PotionRecipe(
-                        potion_id=row[0],
-                        sku=row[1],
-                        name=row[2],
-                        price=row[3],
+                        potion_id=row.id,
+                        sku=row.sku,
+                        name=row.name,
+                        price=row.price,
                         potion_type=LiquidType.from_tuple(
-                            (row[4], row[5], row[6], row[7])
+                            (row.red_ml, row.green_ml, row.blue_ml, row.dark_ml)
                         ),
                     ),
-                    stock=row[8],
+                    stock=row.stock,
                 )
             )
 

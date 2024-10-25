@@ -9,3 +9,7 @@ pyvenv.cfg
 /Scripts/
 /Include/
 test_data.txt
+/bin/
+/include/
+/lib/
+lib64
