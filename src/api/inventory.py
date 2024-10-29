@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
 from src.utils import ledger
+import sqlalchemy
+from src import database as db
 
 router = APIRouter(
     prefix="/inventory",
@@ -36,12 +38,30 @@ def get_inventory():
 # Gets called once a day
 @router.post("/plan")
 def get_capacity_plan():
-    """
-    Start with 1 capacity for 50 potions and 1 capacity for 10000 ml of potion. Each additional
-    capacity unit costs 1000 gold.
-    """
+    potion_capacity_upgrade: int = 0
+    liquid_capacity_upgrade: int = 0
+    with db.engine.begin() as connection:
+        capacity_plan = connection.execute(
+            sqlalchemy.text(
+                """
+                SELECT potion_capacity_upgrade, liquid_capacity_upgrade FROM parameter
+                WHERE (
+                    SELECT coalesce(sum(change), 0) as total_gold FROM gold_ledger
+                ) - (potion_capacity_upgrade + liquid_capacity_upgrade) * 1000 >= 100
+                """
+            )
+        )
+        for row in capacity_plan:
+            potion_capacity_upgrade = row.potion_capacity_upgrade
+            liquid_capacity_upgrade = row.liquid_capacity_upgrade
 
-    return {"potion_capacity": 0, "ml_capacity": 0}
+    print(
+        f"Capacity plan: potion inventory upgraded by {potion_capacity_upgrade * 50}, liquid inventory upgrade by {liquid_capacity_upgrade * 10000}"
+    )
+    return {
+        "potion_capacity": potion_capacity_upgrade,
+        "ml_capacity": liquid_capacity_upgrade,
+    }
 
 
 class CapacityPurchase(BaseModel):
