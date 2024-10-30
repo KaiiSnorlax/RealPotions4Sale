@@ -190,32 +190,61 @@ def barrel_bought(json_string: str):
         connection.execute(barrels_bought)
 
 
-# TO-DO: Properly implement capacity purchases
-def potion_capacity_ledger_entry(quantity: int):
-    ledger_potion_entry = sqlalchemy.text(
-        """INSERT INTO
-            capacity_ledger (transaction_id, type, change)
-           SELECT
-            max(transaction_id), 'potion', (50 * :quantity)
-           FROM
-            transaction"""
-    ).bindparams(quantity=quantity)
+def capacity_upgrade(liquid_upgrade: int, potion_upgrade: int):
+    liquid_upgrade_transaction = sqlalchemy.text(
+        """
+        INSERT INTO transaction (description)
+        VALUES ('Liquid Capacity Upgrade: + :l_upgrade ml space')
+        RETURNING id
+        """
+    ).bindparams(l_upgrade=liquid_upgrade * 10000)
 
-    with db.engine.begin() as connection:
-        connection.execute(ledger_potion_entry)
+    potion_upgrade_transaction = sqlalchemy.text(
+        """
+        INSERT INTO transaction (description)
+        VALUES ('Potion Capacity Upgrade: + :p_upgrade potion slots')
+        RETURNING id
+        """
+    ).bindparams(p_upgrade=potion_upgrade * 50)
 
+    liquid_upgrade_entry = sqlalchemy.text(
+        """
+        INSERT INTO capacity_ledger (transaction_id, type, change)
+        VALUES (:t_id, 'liquid', :capacity_change);
 
-def liquid_capacity_ledger_entry(quantity: int):
-    ledger_potion_entry = sqlalchemy.text(
-        """INSERT INTO
-            capacity_ledger (transaction_id, type, change)
-           SELECT
-            max(transaction_id), 'liquid', (10000 * :quantity)
-           FROM transaction"""
-    ).bindparams(quantity=quantity)
+        INSERT INTO gold_ledger (transaction_id, change)
+        VALUES (:t_id, :gold_change);
+        """
+    )
 
-    with db.engine.begin() as connection:
-        connection.execute(ledger_potion_entry)
+    potion_upgrade_entry = sqlalchemy.text(
+        """
+        INSERT INTO capacity_ledger (transaction_id, type, change)
+        VALUES (:t_id, 'potion', :capacity_change);
+
+        INSERT INTO gold_ledger (transaction_id, change)
+        VALUES (:t_id, :gold_change);
+        """
+    )
+
+    if liquid_upgrade > 0:
+        with db.engine.begin() as connection:
+            transaction_id = connection.execute(liquid_upgrade_transaction).scalar_one()
+            connection.execute(
+                liquid_upgrade_entry.bindparams(
+                    t_id=transaction_id, capacity_change=liquid_upgrade * 10000, gold_change=-liquid_upgrade * 1000
+                )
+            )
+
+    if potion_upgrade > 0:
+        with db.engine.begin() as connection:
+            transaction_id = connection.execute(potion_upgrade_transaction).scalar_one()
+            connection.execute(
+                potion_upgrade_entry.bindparams(
+                    t_id=transaction_id, capacity_change=potion_upgrade * 50, gold_change=-potion_upgrade * 1000
+                )
+            )
+    return
 
 
 def liquid_ledger_sum(color: str) -> int:
