@@ -22,9 +22,7 @@ class LiquidType(BaseModel):
 
     @staticmethod
     def from_tuple(potion: tuple[int, int, int, int]):
-        return LiquidType(
-            red_ml=potion[0], green_ml=potion[1], blue_ml=potion[2], dark_ml=potion[3]
-        )
+        return LiquidType(red_ml=potion[0], green_ml=potion[1], blue_ml=potion[2], dark_ml=potion[3])
 
     def to_tuple(self):
         return (self.red_ml, self.green_ml, self.blue_ml, self.dark_ml)
@@ -72,25 +70,28 @@ def get_barrel_type(barrel: Barrel) -> str:
         return "dark_ml"
 
 
+def get_bottomline() -> int:
+    liquid_capacity: int = ledger.liquid_capacity_sum()
+
+    if liquid_capacity >= 50000:
+        return (liquid_capacity // 4) - 10000
+
+    return (liquid_capacity // 3) - 2500
+
+
 # Creates a barrel plan depending of colors with stocks below 100ml.
 def create_barrel_plan(wholesale_catalog: list[Barrel]) -> list[BarrelOrder]:
     liquid_in_inventory: LiquidType = get_liquid_amount()
     avaliable_space: int = get_avaliable_liquid_space(liquid_in_inventory)
     avaliable_gold: int = ledger.gold_ledger_sum()
+    barrel_bottomline: int = get_bottomline()
 
     barrels_to_buy: list[BarrelOrder] = []
     for color in colors:
-
-        if getattr(liquid_in_inventory, color) <= 100:
-            largest_barrel = get_largest_barrel(
-                color, wholesale_catalog, avaliable_gold, avaliable_space
-            )[0]
-            avaliable_gold = get_largest_barrel(
-                color, wholesale_catalog, avaliable_gold, avaliable_space
-            )[1]
-            avaliable_space = get_largest_barrel(
-                color, wholesale_catalog, avaliable_gold, avaliable_space
-            )[2]
+        if getattr(liquid_in_inventory, color) <= barrel_bottomline:
+            largest_barrel = get_largest_barrel(color, wholesale_catalog, avaliable_gold, avaliable_space)[0]
+            avaliable_gold = get_largest_barrel(color, wholesale_catalog, avaliable_gold, avaliable_space)[1]
+            avaliable_space = get_largest_barrel(color, wholesale_catalog, avaliable_gold, avaliable_space)[2]
 
             if largest_barrel is None:
                 continue
@@ -112,27 +113,10 @@ def get_largest_barrel(
     for barrel in wholesale_catalog:
         if (
             (get_barrel_type(barrel) == color)
-            and color != "dark_ml"
             and (avaliable_gold >= barrel.price)
             and (avaliable_space >= barrel.ml_per_barrel)
-            and barrel.ml_per_barrel <= 2500
         ):
-            if largest_barrel is None:
-                largest_barrel = barrel
-
-            elif barrel.ml_per_barrel > largest_barrel.ml_per_barrel:
-                largest_barrel = barrel
-        elif (
-            (get_barrel_type(barrel) == color)
-            and color == "dark_ml"
-            and (avaliable_gold >= barrel.price)
-            and (avaliable_space >= barrel.ml_per_barrel)
-            and barrel.ml_per_barrel <= 10000
-        ):
-            if largest_barrel is None:
-                largest_barrel = barrel
-
-            elif barrel.ml_per_barrel > largest_barrel.ml_per_barrel:
+            if largest_barrel is None or barrel.ml_per_barrel > largest_barrel.ml_per_barrel:
                 largest_barrel = barrel
 
     if largest_barrel is None:
