@@ -1,7 +1,10 @@
+import sqlalchemy
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from src import database as db
 from src.api import auth
-from src.utils import potions_util, ledger
+from src.utils import ledger, potions_util
 
 router = APIRouter(
     prefix="/bottler",
@@ -60,6 +63,20 @@ def post_deliver_bottles(potions_delivered: list[PotionDelivered], order_id: int
 def get_bottle_plan():
 
     plan = potions_util.get_potion_plan()
+
+    match_amount = 3
+    bracket_id = 10
+
+    with db.engine.begin() as conn:
+        conn.execute(
+            sqlalchemy.text(
+                """
+                INSERT INTO matches (bracket_id)
+                SELECT :bracket_id
+                FROM generate_series(1, :match_amount)
+                """
+            ).bindparams(bracket_id=bracket_id, match_amount=match_amount)
+        )
 
     print(f"Get Bottle Plan: {plan}")
     return plan

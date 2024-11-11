@@ -1,10 +1,9 @@
 import sqlalchemy
+
 from src import database as db
 
 
-def create_new_cart(
-    customer_name: str, customer_class: str, customer_level: int
-) -> int | None:
+def create_new_cart(customer_name: str, customer_class: str, customer_level: int) -> int | None:
 
     # Creates a new cart
     cart = sqlalchemy.text(
@@ -30,9 +29,7 @@ def create_new_cart(
         create_cart = connection.execute(cart).first()
 
     if create_cart is None:
-        raise RuntimeError(
-            f"Failed to create a cart for {customer_name, customer_class, customer_level}"
-        )
+        raise RuntimeError(f"Failed to create a cart for {customer_name, customer_class, customer_level}")
 
     cart_id = create_cart[0]
 
@@ -50,5 +47,3 @@ def add_item_to_cart(cart_id: int, potion_id: int, quantity: int):
 
     with db.engine.begin() as connection:
         connection.execute(add_to_cart_query)
-
-    return

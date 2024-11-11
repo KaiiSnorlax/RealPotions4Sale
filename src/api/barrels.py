@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+
 from src.api import auth
 from src.utils import barrels_util, ledger
 

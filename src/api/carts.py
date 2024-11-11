@@ -1,8 +1,12 @@
+from enum import Enum
+
+import sqlalchemy
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from src import database as db
 from src.api import auth
-from enum import Enum
-from src.utils import customer_util, cart_util, ledger, potions_util
+from src.utils import cart_util, customer_util, ledger, potions_util
 
 router = APIRouter(
     prefix="/carts",
@@ -45,44 +49,57 @@ def search_orders(
     sort_col: SearchSortOptions = SearchSortOptions.timestamp,
     sort_order: SearchSortOrder = SearchSortOrder.desc,
 ):
-    """
-    Search for cart line items by customer name and/or potion sku.
+    search_results: list[SearchResultsEntry] = []
 
-    Customer name and potion sku filter to orders that contain the
-    string (case insensitive). If the filters aren't provided, no
-    filtering occurs on the respective search term.
+    customer_name = "%" + customer_name + "%"
+    potion_sku = "%" + potion_sku + "%"
 
-    Search page is a cursor for pagination. The response to this
-    search endpoint will return previous or next if there is a
-    previous or next page of results available. The token passed
-    in that search response can be passed in the next search request
-    as search page to get that page of results.
+    if search_page == "" or int(search_page) == 1:
+        page = 1
+        prev_page = ""
+    else:
+        page = int(search_page)
+        prev_page = str(page - 1)
 
-    Sort col is which column to sort by and sort order is the direction
-    of the search. They default to searching by timestamp of the order
-    in descending order.
+    offset_val = (page - 1) * 5
+    query = sqlalchemy.text(
+        f"""
+        SELECT customer.name AS customer_name, cart_item.id AS line_item_id, potion.sku AS item_sku,
+        gold_ledger.change AS line_item_total, real_timestamp AS timestamp
+        FROM customer
+        JOIN visit ON visit.customer_id = customer.id
+        JOIN cart ON cart.visit_id = visit.id
+        JOIN cart_item ON cart_item.cart_id = cart.id
+        JOIN potion ON potion.id = cart_item.potion_id
+        JOIN checkout ON checkout.cart_item_id = cart.id
+        JOIN gold_ledger ON gold_ledger.transaction_id = checkout.transaction_id
+        WHERE customer.name ILIKE :customer_name AND potion.sku ILIKE :potion_sku
+        ORDER BY {sort_col} {sort_order}
+        LIMIT 6
+        OFFSET :offset_val
+        """
+    ).bindparams(offset_val=offset_val, customer_name=customer_name, potion_sku=potion_sku)
+    with db.engine.begin() as connection:
+        result = connection.execute((query)).mappings()
 
-    The response itself contains a previous and next page token (if
-    such pages exist) and the results as an array of line items. Each
-    line item contains the line item id (must be unique), item sku,
-    customer name, line item total (in gold), and timestamp of the order.
-    Your results must be paginated, the max results you can return at any
-    time is 5 total line items.
-    """
-
-    return SearchResults(
-        previous="",
-        next="",
-        results=[
-            SearchResultsEntry(
-                line_item_id=1,
-                item_sku="1 oblivion potion",
-                customer_name="Scaramouche",
-                line_item_total=50,
-                timestamp="2021-01-01T00:00:00Z",
+        for row in result:
+            search_results.append(
+                SearchResultsEntry(
+                    line_item_id=row.line_item_id,
+                    item_sku=row.item_sku,
+                    customer_name=row.customer_name,
+                    line_item_total=row.line_item_total,
+                    timestamp=row.timestamp.isoformat(),
+                )
             )
-        ],
-    )
+
+        if len(search_results) <= 5:
+            next_page = ""
+        else:
+            next_page = str(page + 1)
+            search_results.pop(5)
+
+        return SearchResults(previous=prev_page, next=next_page, results=search_results)
 
 
 class Customer(BaseModel):
@@ -119,9 +136,7 @@ def post_visits(visit_id: int, customers: list[Customer]):
 @router.post("/")
 def create_cart(customer: Customer):
 
-    cart_id = cart_util.create_new_cart(
-        customer.customer_name, customer.character_class, customer.level
-    )
+    cart_id = cart_util.create_new_cart(customer.customer_name, customer.character_class, customer.level)
 
     print(
         f"Cart Created: {customer.customer_name} (level: {customer.level}, class: {customer.character_class}) created a cart with an id of {cart_id}"
@@ -137,13 +152,9 @@ class CartItem(BaseModel):
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
 
-    cart_util.add_item_to_cart(
-        cart_id, potions_util.get_id_from_sku(item_sku), cart_item.quantity
-    )
+    cart_util.add_item_to_cart(cart_id, potions_util.get_id_from_sku(item_sku), cart_item.quantity)
 
-    print(
-        f"Item Added to Cart: added {item_sku} (x{cart_item.quantity}) to cart {cart_id}"
-    )
+    print(f"Item Added to Cart: added {item_sku} (x{cart_item.quantity}) to cart {cart_id}")
     return cart_item.quantity
 
 
