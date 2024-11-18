@@ -62,25 +62,26 @@ def search_orders(
         prev_page = str(page - 1)
 
     offset_val = (page - 1) * 5
-    query = sqlalchemy.text(
-        f"""
-        SELECT customer.name AS customer_name, cart_item.id AS line_item_id, potion.sku AS item_sku,
-        gold_ledger.change AS line_item_total, real_timestamp AS timestamp
-        FROM customer
-        JOIN visit ON visit.customer_id = customer.id
-        JOIN cart ON cart.visit_id = visit.id
-        JOIN cart_item ON cart_item.cart_id = cart.id
-        JOIN potion ON potion.id = cart_item.potion_id
-        JOIN checkout ON checkout.cart_item_id = cart.id
-        JOIN gold_ledger ON gold_ledger.transaction_id = checkout.transaction_id
-        WHERE customer.name ILIKE :customer_name AND potion.sku ILIKE :potion_sku
-        ORDER BY {sort_col} {sort_order}
-        LIMIT 6
-        OFFSET :offset_val
-        """
-    ).bindparams(offset_val=offset_val, customer_name=customer_name, potion_sku=potion_sku)
+
     with db.engine.begin() as connection:
-        result = connection.execute((query)).mappings()
+        result = connection.execute(
+            sqlalchemy.text(
+                f"""
+                SELECT customer.name AS customer_name, potion.sku AS item_sku, cart_item.id AS line_item_id, real_timestamp AS timestamp, gold_ledger.change AS line_item_total
+                FROM customer
+                JOIN visit ON visit.customer_id = customer.id
+                JOIN cart ON cart.visit_id = visit.id
+                JOIN cart_item ON cart_item.cart_id = cart.id
+                JOIN potion ON potion.id = cart_item.potion_id
+                JOIN checkout ON checkout.cart_item_id = cart_item.id 
+                JOIN gold_ledger ON gold_ledger.transaction_id = checkout.transaction_id 
+                WHERE customer.name ILIKE :customer_name AND potion.sku ILIKE :potion_sku
+                ORDER BY {sort_col.value} {sort_order.value}
+                LIMIT 6
+                OFFSET :offset_val
+                """
+            ).bindparams(offset_val=offset_val, customer_name=customer_name, potion_sku=potion_sku)
+        ).mappings()
 
         for row in result:
             search_results.append(
