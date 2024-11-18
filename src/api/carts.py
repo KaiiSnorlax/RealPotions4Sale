@@ -3,6 +3,8 @@ from enum import Enum
 import sqlalchemy
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from fastapi import HTTPException
+
 
 from src import database as db
 from src.api import auth
@@ -61,8 +63,18 @@ def search_orders(
         page = int(search_page)
         prev_page = str(page - 1)
 
-    offset_val = (page - 1) * 5
+    if str(sort_col.value) in ["customer_name", "item_sku", "line_item_total", "timestamp"] and str(
+        sort_order.value
+    ).upper() in [
+        "DESC",
+        "ASC",
+    ]:
+        col_sort = str(sort_col.value)
+        col_order = str(sort_order.value).upper()
+    else:
+        raise HTTPException(400, "Invalid sort or order column.")
 
+    offset_val = (page - 1) * 5
     with db.engine.begin() as connection:
         result = connection.execute(
             sqlalchemy.text(
@@ -76,11 +88,15 @@ def search_orders(
                 JOIN checkout ON checkout.cart_item_id = cart_item.id 
                 JOIN gold_ledger ON gold_ledger.transaction_id = checkout.transaction_id 
                 WHERE customer.name ILIKE :customer_name AND potion.sku ILIKE :potion_sku
-                ORDER BY {sort_col.value} {sort_order.value}
+                ORDER BY {col_sort} {col_order}
                 LIMIT 6
                 OFFSET :offset_val
                 """
-            ).bindparams(offset_val=offset_val, customer_name=customer_name, potion_sku=potion_sku)
+            ).bindparams(
+                offset_val=offset_val,
+                customer_name=customer_name,
+                potion_sku=potion_sku,
+            )
         ).mappings()
 
         for row in result:
