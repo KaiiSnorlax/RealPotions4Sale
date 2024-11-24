@@ -62,9 +62,9 @@ def get_potion_plan() -> list[BottlePlan]:
 def craftable(potion: LiquidType, liquid_in_inventory: LiquidType):
     if (
         (liquid_in_inventory.to_tuple()[0] < potion.to_tuple()[0])
-        and (liquid_in_inventory.to_tuple()[1] < potion.to_tuple()[1])
-        and (liquid_in_inventory.to_tuple()[2] < potion.to_tuple()[2])
-        and (liquid_in_inventory.to_tuple()[3] < potion.to_tuple()[3])
+        or (liquid_in_inventory.to_tuple()[1] < potion.to_tuple()[1])
+        or (liquid_in_inventory.to_tuple()[2] < potion.to_tuple()[2])
+        or (liquid_in_inventory.to_tuple()[3] < potion.to_tuple()[3])
     ):
         return False
 
