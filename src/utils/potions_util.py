@@ -45,9 +45,7 @@ def get_potion_plan() -> list[BottlePlan]:
         else:
             lowest_stock.stock += 1
             free_space -= 1
-            avaliable_liquid = update_avaliable_liquid(
-                avaliable_liquid, lowest_stock.recipe.potion_type
-            )
+            avaliable_liquid = update_avaliable_liquid(avaliable_liquid, lowest_stock.recipe.potion_type)
 
             if lowest_stock.recipe.potion_type.to_tuple() in craftables:
                 craftables[lowest_stock.recipe.potion_type.to_tuple()] += 1
@@ -62,9 +60,13 @@ def get_potion_plan() -> list[BottlePlan]:
 
 
 def craftable(potion: LiquidType, liquid_in_inventory: LiquidType):
-    for i in range(4):
-        if liquid_in_inventory.to_tuple()[i] < potion.to_tuple()[i]:
-            return False
+    if (
+        (liquid_in_inventory.to_tuple()[0] < potion.to_tuple()[0])
+        and (liquid_in_inventory.to_tuple()[1] < potion.to_tuple()[1])
+        and (liquid_in_inventory.to_tuple()[2] < potion.to_tuple()[2])
+        and (liquid_in_inventory.to_tuple()[3] < potion.to_tuple()[3])
+    ):
+        return False
 
     return True
 
@@ -76,9 +78,7 @@ def add_potions_to_plan(craftables: dict[tuple[int, int, int, int], int]):
     return bottle_plan
 
 
-def update_avaliable_liquid(
-    avaliable_liquid: LiquidType, potion: LiquidType
-) -> LiquidType:
+def update_avaliable_liquid(avaliable_liquid: LiquidType, potion: LiquidType) -> LiquidType:
     for color in colors:
         if getattr(potion, color) != 0:
             setattr(
@@ -115,9 +115,7 @@ def get_craftable_potions() -> list[PotionInventory]:
                         sku=row.sku,
                         name=row.name,
                         price=row.price,
-                        potion_type=LiquidType.from_tuple(
-                            (row.red_ml, row.green_ml, row.blue_ml, row.dark_ml)
-                        ),
+                        potion_type=LiquidType.from_tuple((row.red_ml, row.green_ml, row.blue_ml, row.dark_ml)),
                     ),
                     stock=row.stock,
                 )
@@ -151,9 +149,7 @@ def get_potion_recipes() -> list[PotionInventory]:
                         sku=row.sku,
                         name=row.name,
                         price=row.price,
-                        potion_type=LiquidType.from_tuple(
-                            (row.red_ml, row.green_ml, row.blue_ml, row.dark_ml)
-                        ),
+                        potion_type=LiquidType.from_tuple((row.red_ml, row.green_ml, row.blue_ml, row.dark_ml)),
                     ),
                     stock=row.stock,
                 )
@@ -162,16 +158,12 @@ def get_potion_recipes() -> list[PotionInventory]:
     return potion_inventory
 
 
-def get_max_recipe_craftable(
-    recipe: PotionRecipe, liquid_in_inventory: LiquidType
-) -> int:
+def get_max_recipe_craftable(recipe: PotionRecipe, liquid_in_inventory: LiquidType) -> int:
     craftable_per_color: list[int] = []
 
     for color in colors:
         if getattr(recipe, color) != 0:
-            craftable_per_color.append(
-                getattr(liquid_in_inventory, color) // getattr(recipe, color)
-            )
+            craftable_per_color.append(getattr(liquid_in_inventory, color) // getattr(recipe, color))
 
     return min(craftable_per_color)
 
